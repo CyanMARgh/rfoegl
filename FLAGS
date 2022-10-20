@@ -1,0 +1,3 @@
+all
+main.cpp -lGLEW -lglfw -lGL -lX11 -lpthread -lXrandr -lXi
+result -lGLEW -lglfw -lGL -lX11 -lpthread -lXrandr -lXi
