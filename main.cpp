@@ -7,7 +7,7 @@
 #include "utils.h"
 #include <stddef.h>
 #include <SOIL/SOIL.h>
-
+#include <tuple>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -56,28 +56,38 @@ u32 get_shader_program(const std::string& path_vert, const std::string& path_fra
 	puts("shader linked succesfully");
 	return shader_program;
 }
-GLFWwindow* init() {
-	glfwInit();
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+struct Window {
+	GLFWwindow* window;
+	int width, height;
+	
+	Window() {
+		glfwInit();
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+		glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
-	GLFWwindow* window = glfwCreateWindow(800, 600, "rfoegl", nullptr, nullptr);
-	glfwMakeContextCurrent(window);
-	glewExperimental = GL_TRUE;
+		window = glfwCreateWindow(800, 600, "rfoegl", nullptr, nullptr);
+		glfwMakeContextCurrent(window);
+		glewExperimental = GL_TRUE;
 
-	if(!window) {
-		puts("Failed to create GLFW window\n");
+		if(!window) {
+			puts("Failed to create GLFW window\n");
+			glfwTerminate();
+			exit(-1);
+		}
+		if(glewInit() != GLEW_OK) {
+			puts("Failed to initialize GLEW\n");
+			exit(-1);
+		}
+		glfwGetFramebufferSize(window, &width, &height);  
+		glViewport(0, 0, width, height);
+		glEnable(GL_DEPTH_TEST);
+	}
+	~Window() {
 		glfwTerminate();
-		exit(-1);
 	}
-	if(glewInit() != GLEW_OK) {
-		puts("Failed to initialize GLEW\n");
-		exit(-1);
-	}
-	return window;
-}
+};
 u32 load_texture(const std::string& path) {
 	u32 texture;
 	glGenTextures(1, &texture);
@@ -102,109 +112,100 @@ u32 load_texture(const std::string& path) {
 	return texture;
 }
 
+struct Point {
+	vec3 pos; 
+	vec2 uv = {0.f, 0.f};
+};
+struct Mesh {
+	u32 VBO, VAO, EBO;
+	Mesh(Point* points, u32 points_count, u32* indices, u32 indices_count) {
+		glGenVertexArrays(1, &VAO);
+		glGenBuffers(1, &VBO);
+		glGenBuffers(1, &EBO);
+
+		glBindVertexArray(VAO);
+
+		glBindBuffer(GL_ARRAY_BUFFER, VBO);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(Point) * points_count, points, GL_STATIC_DRAW);
+
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)offsetof(Point, pos));
+		glEnableVertexAttribArray(0);
+		// glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)offsetof(Point, color));
+		// glEnableVertexAttribArray(1);
+		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)offsetof(Point, uv));
+		glEnableVertexAttribArray(1);
+
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_count * sizeof(u32), indices, GL_STATIC_DRAW);
+
+		glBindVertexArray(0);
+	}
+	~Mesh() {
+		glDeleteVertexArrays(1, &VAO);
+		glDeleteBuffers(1, &VBO);
+		glDeleteBuffers(1, &EBO);
+	}
+};
+
 int main() {
-	auto window = init();
+	Window main_window;
 
-	int width, height;
-	glfwGetFramebufferSize(window, &width, &height);  
-	glViewport(0, 0, width, height);
-	glEnable(GL_DEPTH_TEST);
-
-	u32 shader_program = get_shader_program("vertex.vert", "fragment.frag");
-
-	struct Point {
-		vec3 pos; 
-		vec2 uv = {0.f, 0.f};
-	};
-	Point vertices[] = {
+	const u32 VERTICES_COUNT = 24, INDICES_COUNT = 36;
+	Point vertices[VERTICES_COUNT] = {
 		{{-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f}},
 		{{ 0.5f, -0.5f, -0.5f}, {1.0f, 0.0f}},
 		{{ 0.5f,  0.5f, -0.5f}, {1.0f, 1.0f}},
-		{{ 0.5f,  0.5f, -0.5f}, {1.0f, 1.0f}},
 		{{-0.5f,  0.5f, -0.5f}, {0.0f, 1.0f}},
-		{{-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f}},
 
 		{{-0.5f, -0.5f,  0.5f}, {0.0f, 0.0f}},
 		{{ 0.5f, -0.5f,  0.5f}, {1.0f, 0.0f}},
 		{{ 0.5f,  0.5f,  0.5f}, {1.0f, 1.0f}},
-		{{ 0.5f,  0.5f,  0.5f}, {1.0f, 1.0f}},
 		{{-0.5f,  0.5f,  0.5f}, {0.0f, 1.0f}},
-		{{-0.5f, -0.5f,  0.5f}, {0.0f, 0.0f}},
 
+		{{-0.5f, -0.5f,  0.5f}, {0.0f, 0.0f}},
 		{{-0.5f,  0.5f,  0.5f}, {1.0f, 0.0f}},
 		{{-0.5f,  0.5f, -0.5f}, {1.0f, 1.0f}},
 		{{-0.5f, -0.5f, -0.5f}, {0.0f, 1.0f}},
-		{{-0.5f, -0.5f, -0.5f}, {0.0f, 1.0f}},
-		{{-0.5f, -0.5f,  0.5f}, {0.0f, 0.0f}},
-		{{-0.5f,  0.5f,  0.5f}, {1.0f, 0.0f}},
 
-		{{ 0.5f,  0.5f,  0.5f}, {1.0f, 0.0f}},
-		{{ 0.5f,  0.5f, -0.5f}, {1.0f, 1.0f}},
-		{{ 0.5f, -0.5f, -0.5f}, {0.0f, 1.0f}},
-		{{ 0.5f, -0.5f, -0.5f}, {0.0f, 1.0f}},
 		{{ 0.5f, -0.5f,  0.5f}, {0.0f, 0.0f}},
 		{{ 0.5f,  0.5f,  0.5f}, {1.0f, 0.0f}},
-
-		{{-0.5f, -0.5f, -0.5f}, {0.0f, 1.0f}},
-		{{ 0.5f, -0.5f, -0.5f}, {1.0f, 1.0f}},
-		{{ 0.5f, -0.5f,  0.5f}, {1.0f, 0.0f}},
-		{{ 0.5f, -0.5f,  0.5f}, {1.0f, 0.0f}},
-		{{-0.5f, -0.5f,  0.5f}, {0.0f, 0.0f}},
-		{{-0.5f, -0.5f, -0.5f}, {0.0f, 1.0f}},
-
-		{{-0.5f,  0.5f, -0.5f}, {0.0f, 1.0f}},
 		{{ 0.5f,  0.5f, -0.5f}, {1.0f, 1.0f}},
-		{{ 0.5f,  0.5f,  0.5f}, {1.0f, 0.0f}},
-		{{ 0.5f,  0.5f,  0.5f}, {1.0f, 0.0f}},
+		{{ 0.5f, -0.5f, -0.5f}, {0.0f, 1.0f}},
+
+		{{-0.5f, -0.5f,  0.5f}, {0.0f, 0.0f}},
+		{{ 0.5f, -0.5f,  0.5f}, {1.0f, 0.0f}},
+		{{ 0.5f, -0.5f, -0.5f}, {1.0f, 1.0f}},
+		{{-0.5f, -0.5f, -0.5f}, {0.0f, 1.0f}},
+
 		{{-0.5f,  0.5f,  0.5f}, {0.0f, 0.0f}},
-		{{-0.5f,  0.5f, -0.5f}, {0.0f, 1.0f}}
+		{{ 0.5f,  0.5f,  0.5f}, {1.0f, 0.0f}},
+		{{ 0.5f,  0.5f, -0.5f}, {1.0f, 1.0f}},
+		{{-0.5f,  0.5f, -0.5f}, {0.0f, 1.0f}},
     };
-    glm::vec3 cube_positions[] = {
-		glm::vec3( 0.0f,  0.0f,  0.0f), 
-		glm::vec3( 2.0f,  5.0f, -15.0f), 
-		glm::vec3(-1.5f, -2.2f, -2.5f),  
-		glm::vec3(-3.8f, -2.0f, -12.3f),  
-		glm::vec3( 2.4f, -0.4f, -3.5f),  
-		glm::vec3(-1.7f,  3.0f, -7.5f),  
-		glm::vec3( 1.3f, -2.0f, -2.5f),  
-		glm::vec3( 1.5f,  2.0f, -2.5f), 
-		glm::vec3( 1.5f,  0.2f, -1.5f), 
-		glm::vec3(-1.3f,  1.0f, -1.5f) 
-    };
-	// u32 indices[] = {
-	// 	0, 1, 2,
-	// 	3, 4, 5,
-	// };
+	u32 indices[] = {
+		0, 1, 2, 0, 2, 3,
+		4, 5, 6, 4, 6, 7,
+		8, 9, 10, 8, 10, 11,
+		12, 13, 14, 12, 14, 15,
+		16, 17, 18, 16, 18, 19,
+		20, 21, 22, 20, 22, 23
+	};
+    const u32 CUBE_NUM = 1;
+    glm::vec3 cube_positions[CUBE_NUM];
+    for(u32 i = 0; i < CUBE_NUM; i++) {
+    	cube_positions[i] = glm::vec3(randf() * 4.f - 2.f, randf() * 4.f - 2.f, randf() * -5.f);
+    }
 
+    Mesh mesh(vertices, VERTICES_COUNT, indices, INDICES_COUNT);
+
+	u32 shader_program = get_shader_program("vertex.vert", "fragment.frag");
 	u32 texture = load_texture("wallpaper.png");
-
-	u32 VBO, VAO, EBO;
-	glGenVertexArrays(1, &VAO);
-	glGenBuffers(1, &VBO);
-//	glGenBuffers(1, &EBO);
-
-	glBindVertexArray(VAO);
-
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)offsetof(Point, pos));
-	glEnableVertexAttribArray(0);
-	// glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)offsetof(Point, color));
-	// glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)offsetof(Point, uv));
-	glEnableVertexAttribArray(1);
-
-	// glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-	// glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-	glBindVertexArray(0);
 
 	// u32 uloc_time = glGetUniformLocation(shader_program, "u_time");
 	u32 uloc_texture = glGetUniformLocation(shader_program, "u_texture");
 	u32 uloc_transform = glGetUniformLocation(shader_program, "u_transform");
 
-	while(!glfwWindowShouldClose(window)) {
+	while(!glfwWindowShouldClose(main_window.window)) {
 		glfwPollEvents();
 		float time = glfwGetTime();
 
@@ -217,30 +218,26 @@ int main() {
 		glUseProgram(shader_program);
 		// glUniform1f(uloc_time, time);
 
-		glm::mat4 view(1.f), projection(1.f);
+		glm::mat4 view(1.f), projection(1.f), scale(1.f);
+		scale = glm::scale(scale, glm::vec3(4.f));
 		view = glm::translate(view, glm::vec3(0.f, 0.f, -4.f));
-		projection = glm::perspective(45.f, (float)width/(float)height, .1f, 100.f);
+		projection = glm::perspective(45.f, (float)main_window.width/(float)main_window.height, .1f, 100.f);
 
-		glBindVertexArray(VAO);
-		for(u32 i = 0; i < 10; i++) {			
+		glBindVertexArray(mesh.VAO);
+		for(u32 i = 0; i < CUBE_NUM; i++) {			
 			glm::mat4 model(1.f);
 			model = glm::translate(model, cube_positions[i]);
-			model = glm::rotate(model, 2.f * sqrtf(i + 1.f) * time, glm::vec3(1.f, .3f, .5f));
-			glm::mat4 transform = projection * view * model;
+			float angle = (float)(2.f * pow(i + 2.f, .2f) * time);
+			model = glm::rotate(model, angle, glm::vec3(1.f, .3f, .5f));
+			glm::mat4 transform = projection * view * model * scale;
 
 			glUniformMatrix4fv(uloc_transform, 1, GL_FALSE, glm::value_ptr(transform));
-			glDrawArrays(GL_TRIANGLES, 0, 36);
+			// glDrawArrays(GL_TRIANGLES, 0, 36);
+			glDrawElements(GL_TRIANGLES, sizeof(indices), GL_UNSIGNED_INT, 0);
 		}
-		// glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
 		glBindVertexArray(0);
 
-		glfwSwapBuffers(window);		
+		glfwSwapBuffers(main_window.window);		
 	}
-
-	glDeleteVertexArrays(1, &VAO);
-	glDeleteBuffers(1, &VBO);
-	glDeleteBuffers(1, &EBO);
-
-	glfwTerminate();
 	return 0;
 }
