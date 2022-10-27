@@ -147,8 +147,44 @@ struct Mesh {
 	}
 };
 
+//TODO FIX IT
+struct Camera {
+	glm::mat4 translation{1.f};
+	glm::mat4 rotation{1.f};
+};
+
+Camera main_camera;
+bool pressed_keys[1024] = {false};
+
+void move_camera(float delta_time) {
+	GLfloat cam_speed = 5.f, rot_speed = 2.0f;
+	glm::vec4 direction = {0.f, 0.f, 0.f, 0.f};
+	float angle = 0.f;
+	if(pressed_keys[GLFW_KEY_W]) direction.z -= 1.f;
+	if(pressed_keys[GLFW_KEY_S]) direction.z += 1.f;
+	if(pressed_keys[GLFW_KEY_A]) direction.x -= 1.f;
+	if(pressed_keys[GLFW_KEY_D]) direction.x += 1.f;	
+	if(pressed_keys[GLFW_KEY_Q]) angle += 1.f;
+	if(pressed_keys[GLFW_KEY_E]) angle -= 1.f;
+	direction = main_camera.rotation * direction * cam_speed * delta_time;
+	glm::vec3 direction3 = {direction.x, direction.y, direction.z};
+
+	main_camera.translation = glm::translate(main_camera.translation, direction3);
+	main_camera.rotation = glm::rotate(main_camera.rotation, rot_speed * angle * delta_time, glm::vec3(0.f, 1.f, 0.f));
+}
+
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode) {
+	if(action == GLFW_PRESS) {
+		pressed_keys[key] = true;
+	} else if(action == GLFW_RELEASE) {
+		pressed_keys[key] = false;
+	}
+}
+
 int main() {
 	Window main_window;
+	main_camera.translation = glm::translate(main_camera.translation, glm::vec3(0.f, 0.f, 3.f));
+	glfwSetKeyCallback(main_window.window, key_callback);
 
 	const u32 VERTICES_COUNT = 24, INDICES_COUNT = 36;
 	Point vertices[VERTICES_COUNT] = {
@@ -190,24 +226,26 @@ int main() {
 		16, 17, 18, 16, 18, 19,
 		20, 21, 22, 20, 22, 23
 	};
-    const u32 CUBE_NUM = 1;
+    const u32 CUBE_NUM = 10;
     glm::vec3 cube_positions[CUBE_NUM];
     for(u32 i = 0; i < CUBE_NUM; i++) {
-    	cube_positions[i] = glm::vec3(randf() * 4.f - 2.f, randf() * 4.f - 2.f, randf() * -5.f);
+		cube_positions[i] = glm::vec3(randf() * 4.f - 2.f, randf() * 4.f - 2.f, randf() * -5.f);
     }
 
     Mesh mesh(vertices, VERTICES_COUNT, indices, INDICES_COUNT);
 
 	u32 shader_program = get_shader_program("vertex.vert", "fragment.frag");
-	u32 texture = load_texture("wallpaper.png");
+	u32 texture = load_texture("chio_rio.png");
 
 	// u32 uloc_time = glGetUniformLocation(shader_program, "u_time");
 	u32 uloc_texture = glGetUniformLocation(shader_program, "u_texture");
 	u32 uloc_transform = glGetUniformLocation(shader_program, "u_transform");
 
+	float prev_time = glfwGetTime();
 	while(!glfwWindowShouldClose(main_window.window)) {
+		float new_time = glfwGetTime(), delta_time = new_time - prev_time;
+		move_camera(delta_time); prev_time = new_time;
 		glfwPollEvents();
-		float time = glfwGetTime();
 
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -219,17 +257,16 @@ int main() {
 		// glUniform1f(uloc_time, time);
 
 		glm::mat4 view(1.f), projection(1.f), scale(1.f);
-		scale = glm::scale(scale, glm::vec3(4.f));
-		view = glm::translate(view, glm::vec3(0.f, 0.f, -4.f));
+		scale = glm::scale(scale, glm::vec3(1.f));
 		projection = glm::perspective(45.f, (float)main_window.width/(float)main_window.height, .1f, 100.f);
 
 		glBindVertexArray(mesh.VAO);
 		for(u32 i = 0; i < CUBE_NUM; i++) {			
 			glm::mat4 model(1.f);
 			model = glm::translate(model, cube_positions[i]);
-			float angle = (float)(2.f * pow(i + 2.f, .2f) * time);
+			float angle = (float)(2.f * pow(i + 2.f, .2f) * new_time);
 			model = glm::rotate(model, angle, glm::vec3(1.f, .3f, .5f));
-			glm::mat4 transform = projection * view * model * scale;
+			glm::mat4 transform = projection * glm::inverse(main_camera.rotation) * glm::inverse(main_camera.translation) * model * scale;
 
 			glUniformMatrix4fv(uloc_transform, 1, GL_FALSE, glm::value_ptr(transform));
 			// glDrawArrays(GL_TRIANGLES, 0, 36);

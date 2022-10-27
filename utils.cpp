@@ -115,3 +115,4 @@ float Mat2x2::det() const { return a * d - b * c; }
 Mat2x2 Mat2x2::transposed() const { return {a, c, b, d}; }
 Mat2x2 Mat2x2::operator*(const Mat2x2& B) const { return { a * B.a + b * B.c, a * B.b + b * B.d, c * B.a + d * B.c, c * B.b + d * B.d}; }
 vec2 Mat2x2::operator*(vec2 v) const { return { a * v.x + b * v.y, c * v.x + d * v.y }; }
+Mat2x2 Mat2x2::rotation(float a) { return {cosf(a), sinf(a), -sinf(a), cosf(a)}; }

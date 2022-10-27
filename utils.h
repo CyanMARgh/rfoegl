@@ -19,8 +19,8 @@ struct Mat2x2 {
 	Mat2x2 transposed() const;
 	Mat2x2 operator*(const Mat2x2& B) const;
 	vec2 operator*(vec2 v) const;
+	static Mat2x2 rotation(float a);
 };
-
 
 sf::Vector2f to_sfml(vec2 v);
 sf::Vector3f to_sfml(vec3 v);
