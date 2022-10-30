@@ -88,25 +88,43 @@ struct Window {
 		glfwTerminate();
 	}
 };
-u32 load_texture(const std::string& path) {
-	u32 texture;
-	glGenTextures(1, &texture);
+struct Texture {
+	u32 id;
+	int width, height;
+};
+Texture load_texture(const std::string& path) {
+	Texture texture;
+	glGenTextures(1, &texture.id);
 	
-	glBindTexture(GL_TEXTURE_2D, texture);
+	glBindTexture(GL_TEXTURE_2D, texture.id);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-	int tex_width, tex_height;
-	u8* image_data = SOIL_load_image(path.c_str(), &tex_width, &tex_height, 0, SOIL_LOAD_RGB);
-	printf("texture (%s): %lx, %d, %d, %s\n", path.c_str(), (u64)image_data, tex_width, tex_height, SOIL_last_result());
+	u8* image_data = SOIL_load_image(path.c_str(), &texture.width, &texture.height, 0, SOIL_LOAD_RGB);
+
+	printf("texture (%s): %lx, %d, %d, %s\n", path.c_str(), (u64)image_data, texture.width, texture.height, SOIL_last_result());
 	if(!image_data) exit(-1);
 	
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, tex_width, tex_height, 0, GL_RGB, GL_UNSIGNED_BYTE, image_data);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texture.width, texture.height, 0, GL_RGB, GL_UNSIGNED_BYTE, image_data);
 	glGenerateMipmap(GL_TEXTURE_2D);
 	SOIL_free_image_data(image_data);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+
+	u8* image_data_new = new u8[texture.width * texture.height * 3];	
+	glBindTexture(GL_TEXTURE_2D, texture.id);
+	glGetTexImage(
+		GL_TEXTURE_2D,
+		0,
+		GL_RGB,
+		GL_UNSIGNED_BYTE,
+		image_data);
+	SOIL_save_image("output_image.png", SOIL_SAVE_TYPE_BMP, texture.width, texture.height, 3, image_data_new);
+
+	SOIL_free_image_data(image_data_new);
 	glBindTexture(GL_TEXTURE_2D, 0);
 
 	return texture;
@@ -147,7 +165,6 @@ struct Mesh {
 	}
 };
 
-//TODO FIX IT
 struct Camera {
 	glm::mat4 translation{1.f};
 	glm::mat4 rotation{1.f};
@@ -235,7 +252,7 @@ int main() {
     Mesh mesh(vertices, VERTICES_COUNT, indices, INDICES_COUNT);
 
 	u32 shader_program = get_shader_program("vertex.vert", "fragment.frag");
-	u32 texture = load_texture("chio_rio.png");
+	auto texture = load_texture("chio_rio.png");
 
 	// u32 uloc_time = glGetUniformLocation(shader_program, "u_time");
 	u32 uloc_texture = glGetUniformLocation(shader_program, "u_texture");
@@ -251,7 +268,7 @@ int main() {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, texture);
+		glBindTexture(GL_TEXTURE_2D, texture.id);
 		glUniform1i(uloc_texture, 0);
 		glUseProgram(shader_program);
 		// glUniform1f(uloc_time, time);
