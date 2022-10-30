@@ -113,19 +113,18 @@ Texture load_texture(const std::string& path) {
 	SOIL_free_image_data(image_data);
 	glBindTexture(GL_TEXTURE_2D, 0);
 
+	// u8* image_data_new = new u8[texture.width * texture.height * 3];	
+	// glBindTexture(GL_TEXTURE_2D, texture.id);
+	// glGetTexImage(
+	// 	GL_TEXTURE_2D,
+	// 	0,
+	// 	GL_RGB,
+	// 	GL_UNSIGNED_BYTE,
+	// 	image_data);
+	// SOIL_save_image("output_image.png", SOIL_SAVE_TYPE_BMP, texture.width, texture.height, 3, image_data_new);
 
-	u8* image_data_new = new u8[texture.width * texture.height * 3];	
-	glBindTexture(GL_TEXTURE_2D, texture.id);
-	glGetTexImage(
-		GL_TEXTURE_2D,
-		0,
-		GL_RGB,
-		GL_UNSIGNED_BYTE,
-		image_data);
-	SOIL_save_image("output_image.png", SOIL_SAVE_TYPE_BMP, texture.width, texture.height, 3, image_data_new);
-
-	SOIL_free_image_data(image_data_new);
-	glBindTexture(GL_TEXTURE_2D, 0);
+	// SOIL_free_image_data(image_data_new);
+	// glBindTexture(GL_TEXTURE_2D, 0);
 
 	return texture;
 }
