@@ -11,6 +11,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <vector>
+#include <functional>
 
 typedef uint64_t u64;
 typedef uint32_t u32;
@@ -44,7 +46,7 @@ u32 get_shader(const std::string& path, decltype(GL_VERTEX_SHADER) type) {
 	printf("shader compiled succesfully (path: %s)\n", path.c_str());
 	return shader;
 }
-u32 get_shader_program(const std::string& path_vert, const std::string& path_frag) {
+u32 get_shader_program_VF(const std::string& path_vert, const std::string& path_frag) {
 	u32 vertex_shader = get_shader(path_vert, GL_VERTEX_SHADER);
 	u32 fragment_shader = get_shader(path_frag, GL_FRAGMENT_SHADER);
 	u32 shader_program = glCreateProgram();
@@ -52,6 +54,21 @@ u32 get_shader_program(const std::string& path_vert, const std::string& path_fra
 	glAttachShader(shader_program, fragment_shader);
 	glLinkProgram(shader_program);
 	glDeleteShader(vertex_shader);
+	glDeleteShader(fragment_shader);
+	puts("shader linked succesfully");
+	return shader_program;
+}
+u32 get_shader_program_VGF(const std::string& path_vert, const std::string& path_geom,  const std::string& path_frag) {
+	u32 vertex_shader = get_shader(path_vert, GL_VERTEX_SHADER);
+	u32 geometry_shader = get_shader(path_geom, GL_GEOMETRY_SHADER);
+	u32 fragment_shader = get_shader(path_frag, GL_FRAGMENT_SHADER);
+	u32 shader_program = glCreateProgram();
+	glAttachShader(shader_program, vertex_shader);
+	glAttachShader(shader_program, geometry_shader);
+	glAttachShader(shader_program, fragment_shader);
+	glLinkProgram(shader_program);
+	glDeleteShader(vertex_shader);
+	glDeleteShader(geometry_shader);
 	glDeleteShader(fragment_shader);
 	puts("shader linked succesfully");
 	return shader_program;
@@ -82,7 +99,6 @@ struct Window {
 		}
 		glfwGetFramebufferSize(window, &width, &height);  
 		glViewport(0, 0, width, height);
-		glEnable(GL_DEPTH_TEST);
 	}
 	~Window() {
 		glfwTerminate();
@@ -128,14 +144,17 @@ Texture load_texture(const std::string& path) {
 
 	return texture;
 }
-
-struct Point {
-	vec3 pos; 
-	vec2 uv = {0.f, 0.f};
-};
-struct Mesh {
-	u32 VBO, VAO, EBO;
+void set_uniform(u32 location , Texture texture) {
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture.id);
+	glUniform1i(location, 0);
+}
+struct Point { vec3 pos; vec2 uv = {0.f, 0.f}; };
+struct Mesh /*Point*/ {
+	u32 VBO, VAO, EBO, indices_size, points_size;
 	Mesh(Point* points, u32 points_count, u32* indices, u32 indices_count) {
+		points_size = points_count * sizeof(Point);
+		indices_size = indices_count * sizeof(u32);
 		glGenVertexArrays(1, &VAO);
 		glGenBuffers(1, &VBO);
 		glGenBuffers(1, &EBO);
@@ -143,17 +162,15 @@ struct Mesh {
 		glBindVertexArray(VAO);
 
 		glBindBuffer(GL_ARRAY_BUFFER, VBO);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(Point) * points_count, points, GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, points_size, points, GL_STATIC_DRAW);
 
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)offsetof(Point, pos));
 		glEnableVertexAttribArray(0);
-		// glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)offsetof(Point, color));
-		// glEnableVertexAttribArray(1);
 		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)offsetof(Point, uv));
 		glEnableVertexAttribArray(1);
 
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_count * sizeof(u32), indices, GL_STATIC_DRAW);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_size, indices, GL_STATIC_DRAW);
 
 		glBindVertexArray(0);
 	}
@@ -163,23 +180,59 @@ struct Mesh {
 		glDeleteBuffers(1, &EBO);
 	}
 };
+//TODO fix utils.h/cpp for glm::vecN
+struct Particle { vec3 pos; };
+struct Particle_Cloud /*Particle*/ {
+	// same as Mesh, but no EBO and different draw()
+	u32 VBO, VAO, particles_count;
+	Particle_Cloud(Particle* particles, u32 particles_count) {
+		this->particles_count = particles_count;
 
+		glGenVertexArrays(1, &VAO);
+		glGenBuffers(1, &VBO);
+
+		glBindVertexArray(VAO);
+
+		glBindBuffer(GL_ARRAY_BUFFER, VBO);
+		glBufferData(GL_ARRAY_BUFFER, particles_count * sizeof(Particle), particles, GL_STATIC_DRAW);
+
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Particle), (void*)offsetof(Particle, pos));
+		glEnableVertexAttribArray(0);
+
+		glBindVertexArray(0);
+	}
+	~Particle_Cloud() {
+		glDeleteVertexArrays(1, &VAO);
+		glDeleteBuffers(1, &VBO);	
+	}
+};
+void draw(const Mesh& mesh) {
+	glBindVertexArray(mesh.VAO);
+	glDrawElements(GL_TRIANGLES, mesh.indices_size, GL_UNSIGNED_INT, 0);
+	glBindVertexArray(0);
+}
+void draw(const Particle_Cloud& particle_cloud) {
+	glBindVertexArray(particle_cloud.VAO);
+	glDrawArrays(GL_POINTS, 0, particle_cloud.particles_count);
+	// glDrawArraysInstanced(GL_POINTS, 0, particle_cloud.particles_count);
+	glBindVertexArray(0);
+}
 struct Camera {
 	glm::mat4 translation{1.f};
 	glm::mat4 rotation{1.f};
 };
-
 Camera main_camera;
 bool pressed_keys[1024] = {false};
-
 void move_camera(float delta_time) {
-	GLfloat cam_speed = 5.f, rot_speed = 2.0f;
+	GLfloat cam_speed = 2.f, rot_speed = 2.0f;
 	glm::vec4 direction = {0.f, 0.f, 0.f, 0.f};
 	float angle = 0.f;
 	if(pressed_keys[GLFW_KEY_W]) direction.z -= 1.f;
 	if(pressed_keys[GLFW_KEY_S]) direction.z += 1.f;
 	if(pressed_keys[GLFW_KEY_A]) direction.x -= 1.f;
 	if(pressed_keys[GLFW_KEY_D]) direction.x += 1.f;	
+	if(pressed_keys[GLFW_KEY_SPACE]) direction.y += 1.f;	
+	if(pressed_keys[GLFW_KEY_LEFT_SHIFT]) direction.y -= 1.f;	
 	if(pressed_keys[GLFW_KEY_Q]) angle += 1.f;
 	if(pressed_keys[GLFW_KEY_E]) angle -= 1.f;
 	direction = main_camera.rotation * direction * cam_speed * delta_time;
@@ -188,73 +241,141 @@ void move_camera(float delta_time) {
 	main_camera.translation = glm::translate(main_camera.translation, direction3);
 	main_camera.rotation = glm::rotate(main_camera.rotation, rot_speed * angle * delta_time, glm::vec3(0.f, 1.f, 0.f));
 }
-
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode) {
 	if(action == GLFW_PRESS) {
 		pressed_keys[key] = true;
 	} else if(action == GLFW_RELEASE) {
 		pressed_keys[key] = false;
+		if(key == GLFW_KEY_ESCAPE) glfwSetWindowShouldClose(window, GL_TRUE);
 	}
 }
+struct I_Triangle { u32 a, b, c; };
+struct Mesh_2D {
+	std::vector<vec2> vertices;
+	std::vector<I_Triangle> triangles;
+};
+// directly to Mesh_raw
+Mesh load_mesh(const Mesh_2D& mesh_2d) {
+	u32 V = mesh_2d.vertices.size();
+	std::vector<Point> vertices(V);
+	for(u32 i = 0; i < V; i++) {
+		vec2 v = mesh_2d.vertices[i];
+		vertices[i] = {{v.x, v.y, 0.f}};
+	}
+	Mesh mesh(&(vertices[0]), V, (u32*)&(mesh_2d.triangles[0]), mesh_2d.triangles.size() * 3);
+	return mesh;
+}
+struct Value_Map {
+	std::vector<float> values;
+	u32 X, Y;
 
-int main() {
+	Value_Map(std::function<float(float, float)> f, u32 X = 10, u32 Y = 10) {
+		this->X = X, this->Y = Y;
+		if(X < 2 || Y < 2) {
+			printf("too small value map\n");
+			exit(-1);
+		}
+		values.resize(X * Y);
+		for(u32 y = 0, i = 0; y < Y; y++) {
+			for(u32 x = 0; x < X; x++, i++) {
+				values[i] = f((float)x / (X - 1), (float)y / (Y - 1));
+				putchar(values[i] > 0 ? '+' : '-');
+			}
+			putchar('\n');
+		}
+		putchar('\n');
+	}	
+	float at(u32 x, u32 y) const {
+		return values[x + y * X];
+	}
+};
+Mesh_2D make_mesh_2d(const Value_Map& value_map) {
+	u32 X = value_map.X, Y = value_map.Y;
+	u32 S_nodes = X * Y, S_hor = Y * (X - 1), S_ver = (Y - 1) * X, S_total = S_nodes + S_hor + S_ver;
+	Mesh_2D result;
+	result.vertices.resize(S_total);
+
+	// nodes
+	for(u32 y = 0, i = 0; y < Y; y++) {
+		for(u32 x = 0; x < X; x++, i++) {
+			float xf = (float)x / (X - 1), yf = (float)y / (Y - 1);
+			result.vertices[i] = {xf, yf};
+		}
+	}
+	// hor
+	for(u32 y = 0, i = 0; y < Y; y++) {
+		for(u32 x = 0; x < X - 1; x++, i++) {
+			float xf = (float)x / (X - 1), yf = (float)y / (Y - 1);
+			float h1 = value_map.at(x, y), h2 = value_map.at(x + 1, y);
+			float t = h1 / (h1 - h2);
+			result.vertices[S_nodes + i] = {xf + t / (X - 1), yf};
+		}
+	}
+	// ver
+	for(u32 y = 0, i = 0; y < Y - 1; y++) {
+		for(u32 x = 0; x < X; x++, i++) {
+			float xf = (float)x / (X - 1), yf = (float)y / (Y - 1);
+			float h1 = value_map.at(x, y), h2 = value_map.at(x, y + 1);
+			float t = h1 / (h1 - h2);
+			result.vertices[S_nodes + S_hor + i] = {xf, yf + t / (Y - 1)};
+		}
+	}
+	auto add_triangles = [&result] (u32 a, u32 b, u32 c) -> void {
+		result.triangles.push_back({a, b, c});
+	};
+	for(u32 y = 0, i = 0; y < Y - 1; y++) {
+		for(u32 x = 0; x < X - 1; x++, i++) {
+			u8 type =
+				(value_map.at(x, y) > 0) |
+				((value_map.at(x + 1, y) > 0) << 1) |
+				((value_map.at(x, y + 1) > 0) << 2) |
+				((value_map.at(x + 1, y + 1) > 0) << 3);
+			u32 tl = x + y * X, tr = x + 1 + y * X, bl = x + (y + 1) * X, br = x + 1 + (y + 1) * X;
+			u32 t = S_nodes + x + y * (X - 1), b = S_nodes + x + (y + 1) * (X - 1);
+			u32 l = S_nodes + S_hor + x + y * X, r = S_nodes + S_hor + x + 1 + y * X;
+			printf("%2d ", type);
+			// add_triangles(tl, tr, br);
+			switch(type) {
+				case  0: break;
+				case  1: add_triangles(tl, t, l); break;
+				case  2: add_triangles(t, tr, r); break;
+				case  3: add_triangles(tl, tr, r), add_triangles(tl, r, l); break;
+				case  4: add_triangles(bl, l, b); break;
+				case  5: add_triangles(tl, t, b), add_triangles(tl, b, bl); break;
+				case  6: add_triangles(bl, l, b), add_triangles(t, tr, r); break;
+				case  7: add_triangles(tl, tr, r), add_triangles(tl, r, b), add_triangles(tl, b, bl); break;
+				case  8: add_triangles(r, br, b); break;
+				case  9: add_triangles(r, br, b), add_triangles(l, tl, t); break;
+				case 10: add_triangles(t, tr, br), add_triangles(t, br, b); break;
+				case 11: add_triangles(tl, tr, br), add_triangles(tl, br, b), add_triangles(tl, b, l); break;
+				case 12: add_triangles(l, r, br), add_triangles(l, br, bl); break;
+				case 13: add_triangles(tl, t, r), add_triangles(tl, r, br), add_triangles(tl, br, bl); break;
+				case 14: add_triangles(t, tr, br), add_triangles(t, br, bl), add_triangles(t, bl, l); break;
+				case 15: add_triangles(tl, tr, br), add_triangles(tl, br, bl); break;
+				default: printf("can't draw type #%d\n", type);
+				// default: printf("impossible state\n"), exit(-1); break;
+			}
+		}
+		putchar('\n');
+	}
+	putchar('\n');
+	return result;
+};
+void clear() {
+	glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+int _main() {
 	Window main_window;
 	main_camera.translation = glm::translate(main_camera.translation, glm::vec3(0.f, 0.f, 3.f));
 	glfwSetKeyCallback(main_window.window, key_callback);
 
-	const u32 VERTICES_COUNT = 24, INDICES_COUNT = 36;
-	Point vertices[VERTICES_COUNT] = {
-		{{-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f}},
-		{{ 0.5f, -0.5f, -0.5f}, {1.0f, 0.0f}},
-		{{ 0.5f,  0.5f, -0.5f}, {1.0f, 1.0f}},
-		{{-0.5f,  0.5f, -0.5f}, {0.0f, 1.0f}},
+	Value_Map value_map([] (float x, float y) -> float { 
+		return .15f - (x - .5f) * (x - .5f) - (y - .5f) * (y - .5f); 
+	}, 100, 100);
+	Mesh marching_squares = load_mesh(make_mesh_2d(value_map));
 
-		{{-0.5f, -0.5f,  0.5f}, {0.0f, 0.0f}},
-		{{ 0.5f, -0.5f,  0.5f}, {1.0f, 0.0f}},
-		{{ 0.5f,  0.5f,  0.5f}, {1.0f, 1.0f}},
-		{{-0.5f,  0.5f,  0.5f}, {0.0f, 1.0f}},
-
-		{{-0.5f, -0.5f,  0.5f}, {0.0f, 0.0f}},
-		{{-0.5f,  0.5f,  0.5f}, {1.0f, 0.0f}},
-		{{-0.5f,  0.5f, -0.5f}, {1.0f, 1.0f}},
-		{{-0.5f, -0.5f, -0.5f}, {0.0f, 1.0f}},
-
-		{{ 0.5f, -0.5f,  0.5f}, {0.0f, 0.0f}},
-		{{ 0.5f,  0.5f,  0.5f}, {1.0f, 0.0f}},
-		{{ 0.5f,  0.5f, -0.5f}, {1.0f, 1.0f}},
-		{{ 0.5f, -0.5f, -0.5f}, {0.0f, 1.0f}},
-
-		{{-0.5f, -0.5f,  0.5f}, {0.0f, 0.0f}},
-		{{ 0.5f, -0.5f,  0.5f}, {1.0f, 0.0f}},
-		{{ 0.5f, -0.5f, -0.5f}, {1.0f, 1.0f}},
-		{{-0.5f, -0.5f, -0.5f}, {0.0f, 1.0f}},
-
-		{{-0.5f,  0.5f,  0.5f}, {0.0f, 0.0f}},
-		{{ 0.5f,  0.5f,  0.5f}, {1.0f, 0.0f}},
-		{{ 0.5f,  0.5f, -0.5f}, {1.0f, 1.0f}},
-		{{-0.5f,  0.5f, -0.5f}, {0.0f, 1.0f}},
-    };
-	u32 indices[] = {
-		0, 1, 2, 0, 2, 3,
-		4, 5, 6, 4, 6, 7,
-		8, 9, 10, 8, 10, 11,
-		12, 13, 14, 12, 14, 15,
-		16, 17, 18, 16, 18, 19,
-		20, 21, 22, 20, 22, 23
-	};
-    const u32 CUBE_NUM = 10;
-    glm::vec3 cube_positions[CUBE_NUM];
-    for(u32 i = 0; i < CUBE_NUM; i++) {
-		cube_positions[i] = glm::vec3(randf() * 4.f - 2.f, randf() * 4.f - 2.f, randf() * -5.f);
-    }
-
-    Mesh mesh(vertices, VERTICES_COUNT, indices, INDICES_COUNT);
-
-	u32 shader_program = get_shader_program("vertex.vert", "fragment.frag");
-	auto texture = load_texture("chio_rio.png");
-
-	// u32 uloc_time = glGetUniformLocation(shader_program, "u_time");
-	u32 uloc_texture = glGetUniformLocation(shader_program, "u_texture");
+	u32 shader_program = get_shader_program_VF("vertex.vert", "fragment.frag");
 	u32 uloc_transform = glGetUniformLocation(shader_program, "u_transform");
 
 	float prev_time = glfwGetTime();
@@ -263,33 +384,124 @@ int main() {
 		move_camera(delta_time); prev_time = new_time;
 		glfwPollEvents();
 
-		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, texture.id);
-		glUniform1i(uloc_texture, 0);
-		glUseProgram(shader_program);
-		// glUniform1f(uloc_time, time);
-
 		glm::mat4 view(1.f), projection(1.f), scale(1.f);
 		scale = glm::scale(scale, glm::vec3(1.f));
 		projection = glm::perspective(45.f, (float)main_window.width/(float)main_window.height, .1f, 100.f);
+		glm::mat4 model(1.f);
+		// model = glm::translate(model, cube_positions[i]);
+		float angle = 0.f;//(float)(2.f * pow(i + 2.f, .2f) * new_time);
+		model = glm::rotate(model, angle, glm::vec3(1.f, .3f, .5f));
+		glm::mat4 transform = projection * glm::inverse(main_camera.rotation) * glm::inverse(main_camera.translation) * model * scale;
 
-		glBindVertexArray(mesh.VAO);
-		for(u32 i = 0; i < CUBE_NUM; i++) {			
-			glm::mat4 model(1.f);
-			model = glm::translate(model, cube_positions[i]);
-			float angle = (float)(2.f * pow(i + 2.f, .2f) * new_time);
-			model = glm::rotate(model, angle, glm::vec3(1.f, .3f, .5f));
-			glm::mat4 transform = projection * glm::inverse(main_camera.rotation) * glm::inverse(main_camera.translation) * model * scale;
 
-			glUniformMatrix4fv(uloc_transform, 1, GL_FALSE, glm::value_ptr(transform));
-			// glDrawArrays(GL_TRIANGLES, 0, 36);
-			glDrawElements(GL_TRIANGLES, sizeof(indices), GL_UNSIGNED_INT, 0);
+		clear();
+		glUseProgram(shader_program);
+		glUniformMatrix4fv(uloc_transform, 1, GL_FALSE, glm::value_ptr(transform));
+
+		draw(marching_squares);
+
+		glfwSwapBuffers(main_window.window);		
+	}
+	return 0;
+}
+
+int main() {
+	Window main_window;
+	main_camera.translation = glm::translate(main_camera.translation, glm::vec3(0.f, 0.f, 3.f));
+	glfwSetKeyCallback(main_window.window, key_callback);
+
+	const u32 PARTICLE_COUNT = 10000;
+	std::vector<Particle> particles(PARTICLE_COUNT);
+	for(u32 i = 0; i < PARTICLE_COUNT; i++) particles[i] = {vec3{randf(), randf(), randf()} * 2.f - 1.f};
+
+	Point cube_points[] = {
+		{{-0.5f, -0.5f, -0.5f},  {0.0f, 0.0f}},
+		{{ 0.5f, -0.5f, -0.5f},  {1.0f, 0.0f}},
+		{{ 0.5f,  0.5f, -0.5f},  {1.0f, 1.0f}},
+		{{-0.5f,  0.5f, -0.5f},  {0.0f, 1.0f}},
+
+		{{-0.5f, -0.5f,  0.5f},  {0.0f, 0.0f}},
+		{{ 0.5f, -0.5f,  0.5f},  {1.0f, 0.0f}},
+		{{ 0.5f,  0.5f,  0.5f},  {1.0f, 1.0f}},
+		{{-0.5f,  0.5f,  0.5f},  {0.0f, 1.0f}},
+
+		{{-0.5f, -0.5f,  0.5f},  {0.0f, 0.0f}},
+		{{-0.5f,  0.5f,  0.5f},  {1.0f, 0.0f}},
+		{{-0.5f,  0.5f, -0.5f},  {1.0f, 1.0f}},
+		{{-0.5f, -0.5f, -0.5f},  {0.0f, 1.0f}},
+
+		{{ 0.5f, -0.5f,  0.5f},  {0.0f, 0.0f}},
+		{{ 0.5f,  0.5f,  0.5f},  {1.0f, 0.0f}},
+		{{ 0.5f,  0.5f, -0.5f},  {1.0f, 1.0f}},
+		{{ 0.5f, -0.5f, -0.5f},  {0.0f, 1.0f}},
+
+		{{-0.5f, -0.5f,  0.5f},  {0.0f, 0.0f}},
+		{{ 0.5f, -0.5f,  0.5f},  {1.0f, 0.0f}},
+		{{ 0.5f, -0.5f, -0.5f},  {1.0f, 1.0f}},
+		{{-0.5f, -0.5f, -0.5f},  {0.0f, 1.0f}},
+
+		{{-0.5f,  0.5f,  0.5f},  {0.0f, 0.0f}},
+		{{ 0.5f,  0.5f,  0.5f},  {1.0f, 0.0f}},
+		{{ 0.5f,  0.5f, -0.5f},  {1.0f, 1.0f}},
+		{{-0.5f,  0.5f, -0.5f},  {0.0f, 1.0f}}
+	};
+	u32 cube_ids[36];
+	for(u32 i = 0; i < 6; i++) {
+		cube_ids[i*6  ] = i*4+0; 
+		cube_ids[i*6+1] = i*4+2; 
+		cube_ids[i*6+2] = i*4+1; 
+		cube_ids[i*6+3] = i*4+0; 
+		cube_ids[i*6+4] = i*4+3; 
+		cube_ids[i*6+5] = i*4+2; 
+	}
+	Mesh cube_mesh(cube_points, 24, cube_ids, 36);
+	Particle_Cloud particle_cloud(&(particles[0]), PARTICLE_COUNT);
+
+	u32 particle_shader = get_shader_program_VGF("particle.vert", "particle.geom", "particle.frag");
+	u32 cube_shader = get_shader_program_VF("cube.vert", "cube.frag");
+	u32 uloc_transform_particle = glGetUniformLocation(particle_shader, "u_transform");
+	u32 uloc_transform_cube = glGetUniformLocation(cube_shader, "u_transform");
+	// u32 uloc_screen_size = glGetUniformLocation(shader_program, "u_screen_size");
+	// glUniform2f(uloc_screen_size, (float)main_window.width, (float)main_window.height);		
+
+	float prev_time = glfwGetTime();	
+
+	glDepthMask(GL_FALSE);
+	glEnable(GL_DEPTH_TEST);
+
+	while(!glfwWindowShouldClose(main_window.window)) {
+		float new_time = glfwGetTime(), delta_time = new_time - prev_time;
+		move_camera(delta_time); prev_time = new_time;
+		glfwPollEvents();
+
+		clear();
+		{
+			glm::mat4 projection(1.f), scale(1.f);
+			scale = glm::scale(scale, glm::vec3(1.7f));
+			projection = glm::perspective(45.f, (float)main_window.width/(float)main_window.height, .1f, 100.f);
+			glm::mat4 transform = projection * glm::inverse(main_camera.rotation) * glm::inverse(main_camera.translation) * scale;
+
+			glUseProgram(cube_shader);
+			glUniformMatrix4fv(uloc_transform_cube, 1, GL_FALSE, glm::value_ptr(transform));
+			draw(cube_mesh);
 		}
-		glBindVertexArray(0);
 
+		{
+			glm::mat4 projection(1.f);
+			projection = glm::perspective(45.f, (float)main_window.width/(float)main_window.height, .1f, 100.f);
+			glm::mat4 transform = projection * glm::inverse(main_camera.rotation) * glm::inverse(main_camera.translation);
+
+			glDepthMask(GL_FALSE);
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_ALPHA, GL_ONE);
+
+			glUseProgram(particle_shader);
+			glUniformMatrix4fv(uloc_transform_particle, 1, GL_FALSE, glm::value_ptr(transform));
+			draw(particle_cloud);
+
+			glDisable(GL_BLEND);
+			glDepthMask(GL_TRUE);
+		}
 		glfwSwapBuffers(main_window.window);		
 	}
 	return 0;
