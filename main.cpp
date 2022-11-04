@@ -380,13 +380,13 @@ struct Frame_Buffer {
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-				glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, tex_x, tex_y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, tex_x, tex_y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
 			glBindTexture(GL_TEXTURE_2D, 0);
 			glFramebufferTexture2D(GL_DEPTH_COMPONENT, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_texture_id, 0);
 
 			glGenRenderbuffers(1, &RBO);
 			glBindRenderbuffer(GL_RENDERBUFFER, RBO);
-				glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, tex_x, tex_y);
+				glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, tex_x, tex_y);
 			glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
 
@@ -505,6 +505,7 @@ int main() {
 		glfwPollEvents();
 
 		glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer.FBO);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, frame_buffer.RBO);
 
 		// clear();
 		glClearColor(.1f, .1f, .1f, 1.f);
@@ -523,10 +524,12 @@ int main() {
 
 			draw(cube_mesh);
 	
-			// glDisable(GL_DEPTH_TEST);
+			glDisable(GL_DEPTH_TEST);
 		}
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, 0);
+
 		glClearColor(1.f, 1.f, 1.f, 1.f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
