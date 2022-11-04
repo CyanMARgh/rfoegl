@@ -359,8 +359,8 @@ void clear() {
 struct Frame_Buffer {
 	u32 FBO, RBO, color_texture_id, depth_texture_id;
 	Frame_Buffer() {
-		glGenFramebuffers(1, &FBO);
-		glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+		glGenFramebuffersEXT(1, &FBO);
+		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, FBO);
 			//TODO change to parameters
 			u32 tex_x = 800, tex_y = 600;
 			//color texture
@@ -382,15 +382,13 @@ struct Frame_Buffer {
 
 				glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, tex_x, tex_y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
 			glBindTexture(GL_TEXTURE_2D, 0);
-			glFramebufferTexture2D(GL_DEPTH_COMPONENT, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_texture_id, 0);
+			// glFramebufferTexture2D(GL_DEPTH_COMPONENT, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_texture_id, 0);
 
 			glGenRenderbuffers(1, &RBO);
 			glBindRenderbuffer(GL_RENDERBUFFER, RBO);
 				glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, tex_x, tex_y);
 			glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
-
-			glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, tex_x, tex_y);
 			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RBO);
 
 			if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
@@ -402,19 +400,6 @@ struct Frame_Buffer {
 		glDeleteFramebuffers(1, &FBO);
 	}
 };
-// struct Render_Buffer {
-// 	u32 RBO;
-// 	Render_Buffer() {
-// 		glGenRenderbuffers(1, &RBO);
-// 		glBindRenderBuffer(GL_RENDERBUFFER, rbo);
-// 		//TODO change to parameters
-// 		glRenderBufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, 800, 600);
-
-// 	}
-// 	~Render_Buffer() {
-
-// 	}
-// }
 
 int main() {
 	Window main_window;
@@ -485,14 +470,12 @@ int main() {
 	u32 uloc_tex_cube = glGetUniformLocation(cube_shader, "u_tex");
 
 	u32 screen_shader = get_shader_program_VF("res/screen.vert", "res/screen.frag");
-	u32 uloc_tex_screen = glGetUniformLocation(screen_shader, "u_tex"); 
+	u32 uloc_tex0_screen = glGetUniformLocation(screen_shader, "u_tex0"); 
+	u32 uloc_tex1_screen = glGetUniformLocation(screen_shader, "u_tex1"); 
 
 	Texture texture = load_texture("res/chio_rio.png");
 
 	Frame_Buffer frame_buffer;
-
-	// u32 uloc_screen_size = glGetUniformLocation(shader_program, "u_screen_size");
-	// glUniform2f(uloc_screen_size, (float)main_window.width, (float)main_window.height);		
 
 	float prev_time = glfwGetTime();	
 
@@ -505,39 +488,37 @@ int main() {
 		glfwPollEvents();
 
 		glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer.FBO);
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, frame_buffer.RBO);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, frame_buffer.depth_texture_id, 0);
+			clear();
+			{
+				glm::mat4 projection(1.f), scale(1.f);
+				scale = glm::scale(scale, glm::vec3(1.7f));
+				projection = glm::perspective(45.f, (float)main_window.width/(float)main_window.height, .1f, 100.f);
+				glm::mat4 transform = projection * glm::inverse(main_camera.rotation) * glm::inverse(main_camera.translation) * scale;
 
-		// clear();
-		glClearColor(.1f, .1f, .1f, 1.f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		{
-			glm::mat4 projection(1.f), scale(1.f);
-			scale = glm::scale(scale, glm::vec3(1.7f));
-			projection = glm::perspective(45.f, (float)main_window.width/(float)main_window.height, .1f, 100.f);
-			glm::mat4 transform = projection * glm::inverse(main_camera.rotation) * glm::inverse(main_camera.translation) * scale;
+				glUseProgram(cube_shader);
+				set_uniform(uloc_tex_cube, texture);
+				glUniformMatrix4fv(uloc_transform_cube, 1, GL_FALSE, glm::value_ptr(transform));
 
-			glEnable(GL_DEPTH_TEST);
-
-			glUseProgram(cube_shader);
-			set_uniform(uloc_tex_cube, texture);
-			glUniformMatrix4fv(uloc_transform_cube, 1, GL_FALSE, glm::value_ptr(transform));
-
-			draw(cube_mesh);
-	
-			glDisable(GL_DEPTH_TEST);
-		}
-
+				glEnable(GL_DEPTH_TEST);
+				draw(cube_mesh);	
+				glDisable(GL_DEPTH_TEST);
+			}
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, 0);
 
-		glClearColor(1.f, 1.f, 1.f, 1.f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		clear();
+		{
+			glUseProgram(screen_shader);
 
-		glUseProgram(screen_shader);
-		
-		set_uniform_texture(uloc_tex_screen, frame_buffer.depth_texture_id);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, frame_buffer.color_texture_id);
+			glUniform1i(uloc_tex0_screen, 0);
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, frame_buffer.depth_texture_id);
+			glUniform1i(uloc_tex1_screen, 1);
 
-		draw(quad_mesh);
+			draw(quad_mesh);
+		}
 
 		// glDisable(GL_DEPTH_TEST);
 		// set_uniform_texture(uloc_tex_screen, frame_buffer.depth_texture_id);
