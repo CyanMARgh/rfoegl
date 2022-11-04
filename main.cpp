@@ -129,32 +129,23 @@ Texture load_texture(const std::string& path) {
 	SOIL_free_image_data(image_data);
 	glBindTexture(GL_TEXTURE_2D, 0);
 
-	// u8* image_data_new = new u8[texture.width * texture.height * 3];	
-	// glBindTexture(GL_TEXTURE_2D, texture.id);
-	// glGetTexImage(
-	// 	GL_TEXTURE_2D,
-	// 	0,
-	// 	GL_RGB,
-	// 	GL_UNSIGNED_BYTE,
-	// 	image_data);
-	// SOIL_save_image("output_image.png", SOIL_SAVE_TYPE_BMP, texture.width, texture.height, 3, image_data_new);
-
-	// SOIL_free_image_data(image_data_new);
-	// glBindTexture(GL_TEXTURE_2D, 0);
-
 	return texture;
 }
-void set_uniform(u32 location , Texture texture) {
+void set_uniform_texture(u32 location , u32 texture_id) {
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, texture.id);
+	glBindTexture(GL_TEXTURE_2D, texture_id);
 	glUniform1i(location, 0);
+}
+void set_uniform(u32 location , Texture texture) {
+	set_uniform_texture(location, texture.id);
 }
 struct Point { vec3 pos; vec2 uv = {0.f, 0.f}; };
 struct Mesh /*Point*/ {
-	u32 VBO, VAO, EBO, indices_size, points_size;
+	u32 VBO, VAO, EBO, indices_count, points_size;
 	Mesh(Point* points, u32 points_count, u32* indices, u32 indices_count) {
 		points_size = points_count * sizeof(Point);
-		indices_size = indices_count * sizeof(u32);
+		this->indices_count = indices_count;
+ 		// indices_size = indices_count * sizeof(u32);
 		glGenVertexArrays(1, &VAO);
 		glGenBuffers(1, &VBO);
 		glGenBuffers(1, &EBO);
@@ -170,7 +161,7 @@ struct Mesh /*Point*/ {
 		glEnableVertexAttribArray(1);
 
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_size, indices, GL_STATIC_DRAW);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_count * sizeof(Point), indices, GL_STATIC_DRAW);
 
 		glBindVertexArray(0);
 	}
@@ -208,7 +199,7 @@ struct Particle_Cloud /*Particle*/ {
 };
 void draw(const Mesh& mesh) {
 	glBindVertexArray(mesh.VAO);
-	glDrawElements(GL_TRIANGLES, mesh.indices_size, GL_UNSIGNED_INT, 0);
+	glDrawElements(GL_TRIANGLES, mesh.indices_count, GL_UNSIGNED_INT, 0);
 	glBindVertexArray(0);
 }
 void draw(const Particle_Cloud& particle_cloud) {
@@ -365,54 +356,75 @@ void clear() {
 	glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
-int _main() {
-	Window main_window;
-	main_camera.translation = glm::translate(main_camera.translation, glm::vec3(0.f, 0.f, 3.f));
-	glfwSetKeyCallback(main_window.window, key_callback);
+struct Frame_Buffer {
+	u32 FBO, RBO, color_texture_id, depth_texture_id;
+	Frame_Buffer() {
+		glGenFramebuffers(1, &FBO);
+		glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+			//TODO change to parameters
+			u32 tex_x = 800, tex_y = 600;
+			//color texture
+			glGenTextures(1, &color_texture_id);
+			glBindTexture(GL_TEXTURE_2D, color_texture_id);
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, tex_x, tex_y, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 
-	Value_Map value_map([] (float x, float y) -> float { 
-		return .15f - (x - .5f) * (x - .5f) - (y - .5f) * (y - .5f); 
-	}, 100, 100);
-	Mesh marching_squares = load_mesh(make_mesh_2d(value_map));
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glBindTexture(GL_TEXTURE_2D, 0);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_texture_id, 0);
 
-	u32 shader_program = get_shader_program_VF("vertex.vert", "fragment.frag");
-	u32 uloc_transform = glGetUniformLocation(shader_program, "u_transform");
+			// glGenTextures(1, &depth_texture_id);
+			// glBindTexture(GL_TEXTURE_2D, depth_texture_id);
+			// 	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, tex_x, tex_y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
 
-	float prev_time = glfwGetTime();
-	while(!glfwWindowShouldClose(main_window.window)) {
-		float new_time = glfwGetTime(), delta_time = new_time - prev_time;
-		move_camera(delta_time); prev_time = new_time;
-		glfwPollEvents();
+			// 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+			// 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); 
+			// 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			// 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-		glm::mat4 view(1.f), projection(1.f), scale(1.f);
-		scale = glm::scale(scale, glm::vec3(1.f));
-		projection = glm::perspective(45.f, (float)main_window.width/(float)main_window.height, .1f, 100.f);
-		glm::mat4 model(1.f);
-		// model = glm::translate(model, cube_positions[i]);
-		float angle = 0.f;//(float)(2.f * pow(i + 2.f, .2f) * new_time);
-		model = glm::rotate(model, angle, glm::vec3(1.f, .3f, .5f));
-		glm::mat4 transform = projection * glm::inverse(main_camera.rotation) * glm::inverse(main_camera.translation) * model * scale;
+			// 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+			// 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
+			// glBindTexture(GL_TEXTURE_2D, 0);
+			// glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_texture_id, 0);
 
+			glGenRenderbuffers(1, &RBO);
+			glBindRenderbuffer(GL_RENDERBUFFER, RBO);
+				glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, tex_x, tex_y);
+			glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
-		clear();
-		glUseProgram(shader_program);
-		glUniformMatrix4fv(uloc_transform, 1, GL_FALSE, glm::value_ptr(transform));
+			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, RBO);
 
-		draw(marching_squares);
-
-		glfwSwapBuffers(main_window.window);		
+			if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+				printf("ERROR: Framebuffer is not complete!");
+			}
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);  	
 	}
-	return 0;
-}
+	~Frame_Buffer() {
+		glDeleteFramebuffers(1, &FBO);
+	}
+};
+// struct Render_Buffer {
+// 	u32 RBO;
+// 	Render_Buffer() {
+// 		glGenRenderbuffers(1, &RBO);
+// 		glBindRenderBuffer(GL_RENDERBUFFER, rbo);
+// 		//TODO change to parameters
+// 		glRenderBufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, 800, 600);
+
+// 	}
+// 	~Render_Buffer() {
+
+// 	}
+// }
 
 int main() {
 	Window main_window;
 	main_camera.translation = glm::translate(main_camera.translation, glm::vec3(0.f, 0.f, 3.f));
 	glfwSetKeyCallback(main_window.window, key_callback);
 
-	const u32 PARTICLE_COUNT = 10000;
-	std::vector<Particle> particles(PARTICLE_COUNT);
-	for(u32 i = 0; i < PARTICLE_COUNT; i++) particles[i] = {vec3{randf(), randf(), randf()} * 2.f - 1.f};
+	// const u32 PARTICLE_COUNT = 10000;
+	// std::vector<Particle> particles(PARTICLE_COUNT);
+	// for(u32 i = 0; i < PARTICLE_COUNT; i++) particles[i] = {vec3{randf(), randf(), randf()} * 2.f - 1.f};
 
 	Point cube_points[] = {
 		{{-0.5f, -0.5f, -0.5f},  {0.0f, 0.0f}},
@@ -453,55 +465,139 @@ int main() {
 		cube_ids[i*6+3] = i*4+0; 
 		cube_ids[i*6+4] = i*4+3; 
 		cube_ids[i*6+5] = i*4+2; 
-	}
+	}	
 	Mesh cube_mesh(cube_points, 24, cube_ids, 36);
-	Particle_Cloud particle_cloud(&(particles[0]), PARTICLE_COUNT);
+	Point quad_points[] = {
+		{{-0.9f, -0.9f,  0.0f},  {0.0f, 0.0f}},
+		{{ 0.9f, -0.9f,  0.0f},  {1.0f, 0.0f}},
+		{{ 0.9f,  0.9f,  0.0f},  {1.0f, 1.0f}},
+		{{-0.9f,  0.9f,  0.0f},  {0.0f, 1.0f}},
+	};
+	u32 quad_ids[] = {0, 2, 1, 0, 3, 2};
+	Mesh quad_mesh(quad_points, 4, quad_ids, 6);
 
-	u32 particle_shader = get_shader_program_VGF("particle.vert", "particle.geom", "particle.frag");
-	u32 cube_shader = get_shader_program_VF("cube.vert", "cube.frag");
-	u32 uloc_transform_particle = glGetUniformLocation(particle_shader, "u_transform");
+	// Particle_Cloud particle_cloud(&(particles[0]), PARTICLE_COUNT);
+
+	// u32 particle_shader = get_shader_program_VGF("particle.vert", "particle.geom", "particle.frag");
+	// u32 uloc_transform_particle = glGetUniformLocation(particle_shader, "u_transform");
+
+	u32 cube_shader = get_shader_program_VF("res/cube.vert", "res/cube.frag");
 	u32 uloc_transform_cube = glGetUniformLocation(cube_shader, "u_transform");
+	u32 uloc_tex_cube = glGetUniformLocation(cube_shader, "u_tex");
+
+	u32 screen_shader = get_shader_program_VF("res/screen.vert", "res/screen.frag");
+	u32 uloc_tex_screen = glGetUniformLocation(screen_shader, "u_tex"); 
+
+	Texture texture = load_texture("res/chio_rio.png");
+	printf("texture: %d\n", texture.id);
+	set_uniform(uloc_tex_cube, texture);
+
+	Frame_Buffer frame_buffer;
+	printf("frame_buffer.color_texture_id: %d\n", frame_buffer.color_texture_id);
+
+
 	// u32 uloc_screen_size = glGetUniformLocation(shader_program, "u_screen_size");
 	// glUniform2f(uloc_screen_size, (float)main_window.width, (float)main_window.height);		
 
 	float prev_time = glfwGetTime();	
-
-	glDepthMask(GL_FALSE);
-	glEnable(GL_DEPTH_TEST);
 
 	while(!glfwWindowShouldClose(main_window.window)) {
 		float new_time = glfwGetTime(), delta_time = new_time - prev_time;
 		move_camera(delta_time); prev_time = new_time;
 		glfwPollEvents();
 
-		clear();
+		glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer.FBO);
+
+		// clear();
+		glClearColor(.1f, .1f, .1f, 1.f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		{
 			glm::mat4 projection(1.f), scale(1.f);
 			scale = glm::scale(scale, glm::vec3(1.7f));
 			projection = glm::perspective(45.f, (float)main_window.width/(float)main_window.height, .1f, 100.f);
 			glm::mat4 transform = projection * glm::inverse(main_camera.rotation) * glm::inverse(main_camera.translation) * scale;
 
+			glEnable(GL_DEPTH_TEST);
+
 			glUseProgram(cube_shader);
 			glUniformMatrix4fv(uloc_transform_cube, 1, GL_FALSE, glm::value_ptr(transform));
+
 			draw(cube_mesh);
 		}
 
-		{
-			glm::mat4 projection(1.f);
-			projection = glm::perspective(45.f, (float)main_window.width/(float)main_window.height, .1f, 100.f);
-			glm::mat4 transform = projection * glm::inverse(main_camera.rotation) * glm::inverse(main_camera.translation);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glClearColor(1.f, 1.f, 1.f, 1.f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-			glDepthMask(GL_FALSE);
-			glEnable(GL_BLEND);
-			glBlendFunc(GL_ALPHA, GL_ONE);
+		glDisable(GL_DEPTH_TEST);
 
-			glUseProgram(particle_shader);
-			glUniformMatrix4fv(uloc_transform_particle, 1, GL_FALSE, glm::value_ptr(transform));
-			draw(particle_cloud);
+		glUseProgram(screen_shader);
+		
+		set_uniform_texture(uloc_tex_screen, frame_buffer.color_texture_id);
 
-			glDisable(GL_BLEND);
-			glDepthMask(GL_TRUE);
-		}
+		draw(quad_mesh);
+
+		// glDisable(GL_DEPTH_TEST);
+		// set_uniform_texture(uloc_tex_screen, frame_buffer.depth_texture_id);
+
+		// draw(quad_mesh);
+
+		// {
+		// 	glm::mat4 projection(1.f);
+		// 	projection = glm::perspective(45.f, (float)main_window.width/(float)main_window.height, .1f, 100.f);
+		// 	glm::mat4 transform = projection * glm::inverse(main_camera.rotation) * glm::inverse(main_camera.translation);
+
+		// 	glDepthMask(GL_FALSE);
+		// 	glEnable(GL_BLEND);
+		// 	glBlendFunc(GL_ONE, GL_ONE);
+
+		// 	glUseProgram(particle_shader);
+		// 	glUniformMatrix4fv(uloc_transform_particle, 1, GL_FALSE, glm::value_ptr(transform));
+
+		// 	draw(particle_cloud);
+
+		// 	glDisable(GL_BLEND);
+		// 	glDepthMask(GL_TRUE);
+		// }
+		glfwSwapBuffers(main_window.window);		
+	}
+	return 0;
+}
+int _main() {
+	Window main_window;
+	main_camera.translation = glm::translate(main_camera.translation, glm::vec3(0.f, 0.f, 3.f));
+	glfwSetKeyCallback(main_window.window, key_callback);
+
+	Value_Map value_map([] (float x, float y) -> float { 
+		return .15f - (x - .5f) * (x - .5f) - (y - .5f) * (y - .5f); 
+	}, 100, 100);
+	Mesh marching_squares = load_mesh(make_mesh_2d(value_map));
+
+	u32 shader_program = get_shader_program_VF("vertex.vert", "fragment.frag");
+	u32 uloc_transform = glGetUniformLocation(shader_program, "u_transform");
+
+	float prev_time = glfwGetTime();
+	while(!glfwWindowShouldClose(main_window.window)) {
+		float new_time = glfwGetTime(), delta_time = new_time - prev_time;
+		move_camera(delta_time); prev_time = new_time;
+		glfwPollEvents();
+
+		glm::mat4 view(1.f), projection(1.f), scale(1.f);
+		scale = glm::scale(scale, glm::vec3(1.f));
+		projection = glm::perspective(45.f, (float)main_window.width/(float)main_window.height, .1f, 100.f);
+		glm::mat4 model(1.f);
+		// model = glm::translate(model, cube_positions[i]);
+		float angle = 0.f;//(float)(2.f * pow(i + 2.f, .2f) * new_time);
+		model = glm::rotate(model, angle, glm::vec3(1.f, .3f, .5f));
+		glm::mat4 transform = projection * glm::inverse(main_camera.rotation) * glm::inverse(main_camera.translation) * model * scale;
+
+
+		clear();
+		glUseProgram(shader_program);
+		glUniformMatrix4fv(uloc_transform, 1, GL_FALSE, glm::value_ptr(transform));
+
+		draw(marching_squares);
+
 		glfwSwapBuffers(main_window.window);		
 	}
 	return 0;
