@@ -373,26 +373,25 @@ struct Frame_Buffer {
 			glBindTexture(GL_TEXTURE_2D, 0);
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_texture_id, 0);
 
-			// glGenTextures(1, &depth_texture_id);
-			// glBindTexture(GL_TEXTURE_2D, depth_texture_id);
-			// 	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, tex_x, tex_y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
+			glGenTextures(1, &depth_texture_id);
+			glBindTexture(GL_TEXTURE_2D, depth_texture_id);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-			// 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-			// 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); 
-			// 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-			// 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-			// 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
-			// 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
-			// glBindTexture(GL_TEXTURE_2D, 0);
-			// glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_texture_id, 0);
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, tex_x, tex_y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
+			glBindTexture(GL_TEXTURE_2D, 0);
+			glFramebufferTexture2D(GL_DEPTH_COMPONENT, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_texture_id, 0);
 
 			glGenRenderbuffers(1, &RBO);
 			glBindRenderbuffer(GL_RENDERBUFFER, RBO);
 				glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, tex_x, tex_y);
 			glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
-			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, RBO);
+
+			glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, tex_x, tex_y);
+			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RBO);
 
 			if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 				printf("ERROR: Framebuffer is not complete!");
@@ -428,9 +427,9 @@ int main() {
 
 	Point cube_points[] = {
 		{{-0.5f, -0.5f, -0.5f},  {0.0f, 0.0f}},
-		{{ 0.5f, -0.5f, -0.5f},  {1.0f, 0.0f}},
+		{{-0.5f,  0.5f, -0.5f},  {1.0f, 0.0f}},
 		{{ 0.5f,  0.5f, -0.5f},  {1.0f, 1.0f}},
-		{{-0.5f,  0.5f, -0.5f},  {0.0f, 1.0f}},
+		{{ 0.5f, -0.5f, -0.5f},  {0.0f, 1.0f}},
 
 		{{-0.5f, -0.5f,  0.5f},  {0.0f, 0.0f}},
 		{{ 0.5f, -0.5f,  0.5f},  {1.0f, 0.0f}},
@@ -442,14 +441,14 @@ int main() {
 		{{-0.5f,  0.5f, -0.5f},  {1.0f, 1.0f}},
 		{{-0.5f, -0.5f, -0.5f},  {0.0f, 1.0f}},
 
-		{{ 0.5f, -0.5f,  0.5f},  {0.0f, 0.0f}},
+		{{ 0.5f,  0.5f, -0.5f},  {0.0f, 0.0f}},
 		{{ 0.5f,  0.5f,  0.5f},  {1.0f, 0.0f}},
-		{{ 0.5f,  0.5f, -0.5f},  {1.0f, 1.0f}},
+		{{ 0.5f, -0.5f,  0.5f},  {1.0f, 1.0f}},
 		{{ 0.5f, -0.5f, -0.5f},  {0.0f, 1.0f}},
 
-		{{-0.5f, -0.5f,  0.5f},  {0.0f, 0.0f}},
+		{{ 0.5f, -0.5f, -0.5f},  {0.0f, 0.0f}},
 		{{ 0.5f, -0.5f,  0.5f},  {1.0f, 0.0f}},
-		{{ 0.5f, -0.5f, -0.5f},  {1.0f, 1.0f}},
+		{{-0.5f, -0.5f,  0.5f},  {1.0f, 1.0f}},
 		{{-0.5f, -0.5f, -0.5f},  {0.0f, 1.0f}},
 
 		{{-0.5f,  0.5f,  0.5f},  {0.0f, 0.0f}},
@@ -460,11 +459,11 @@ int main() {
 	u32 cube_ids[36];
 	for(u32 i = 0; i < 6; i++) {
 		cube_ids[i*6  ] = i*4+0; 
-		cube_ids[i*6+1] = i*4+2; 
-		cube_ids[i*6+2] = i*4+1; 
+		cube_ids[i*6+1] = i*4+1; 
+		cube_ids[i*6+2] = i*4+2; 
 		cube_ids[i*6+3] = i*4+0; 
-		cube_ids[i*6+4] = i*4+3; 
-		cube_ids[i*6+5] = i*4+2; 
+		cube_ids[i*6+4] = i*4+2; 
+		cube_ids[i*6+5] = i*4+3; 
 	}	
 	Mesh cube_mesh(cube_points, 24, cube_ids, 36);
 	Point quad_points[] = {
@@ -473,7 +472,7 @@ int main() {
 		{{ 0.9f,  0.9f,  0.0f},  {1.0f, 1.0f}},
 		{{-0.9f,  0.9f,  0.0f},  {0.0f, 1.0f}},
 	};
-	u32 quad_ids[] = {0, 2, 1, 0, 3, 2};
+	u32 quad_ids[] = {0, 1, 2, 0, 2, 3};
 	Mesh quad_mesh(quad_points, 4, quad_ids, 6);
 
 	// Particle_Cloud particle_cloud(&(particles[0]), PARTICLE_COUNT);
@@ -489,17 +488,16 @@ int main() {
 	u32 uloc_tex_screen = glGetUniformLocation(screen_shader, "u_tex"); 
 
 	Texture texture = load_texture("res/chio_rio.png");
-	printf("texture: %d\n", texture.id);
-	set_uniform(uloc_tex_cube, texture);
 
 	Frame_Buffer frame_buffer;
-	printf("frame_buffer.color_texture_id: %d\n", frame_buffer.color_texture_id);
-
 
 	// u32 uloc_screen_size = glGetUniformLocation(shader_program, "u_screen_size");
 	// glUniform2f(uloc_screen_size, (float)main_window.width, (float)main_window.height);		
 
 	float prev_time = glfwGetTime();	
+
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
 
 	while(!glfwWindowShouldClose(main_window.window)) {
 		float new_time = glfwGetTime(), delta_time = new_time - prev_time;
@@ -520,20 +518,21 @@ int main() {
 			glEnable(GL_DEPTH_TEST);
 
 			glUseProgram(cube_shader);
+			set_uniform(uloc_tex_cube, texture);
 			glUniformMatrix4fv(uloc_transform_cube, 1, GL_FALSE, glm::value_ptr(transform));
 
 			draw(cube_mesh);
+	
+			// glDisable(GL_DEPTH_TEST);
 		}
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glClearColor(1.f, 1.f, 1.f, 1.f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		glDisable(GL_DEPTH_TEST);
-
 		glUseProgram(screen_shader);
 		
-		set_uniform_texture(uloc_tex_screen, frame_buffer.color_texture_id);
+		set_uniform_texture(uloc_tex_screen, frame_buffer.depth_texture_id);
 
 		draw(quad_mesh);
 
@@ -590,7 +589,6 @@ int _main() {
 		float angle = 0.f;//(float)(2.f * pow(i + 2.f, .2f) * new_time);
 		model = glm::rotate(model, angle, glm::vec3(1.f, .3f, .5f));
 		glm::mat4 transform = projection * glm::inverse(main_camera.rotation) * glm::inverse(main_camera.translation) * model * scale;
-
 
 		clear();
 		glUseProgram(shader_program);

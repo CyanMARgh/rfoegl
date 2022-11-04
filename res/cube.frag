@@ -7,6 +7,6 @@ out vec4 color;
 
 void main() {
 	// color = vec4(0, 0, 1, 1);
-	color = (texture(u_tex, uv) + vec4(0, 0, 1, 1)) * .5;
+	color = texture(u_tex, vec2(uv.x, 1 - uv.y));
 	// color = vec4(uv, 1, 1);
 }
