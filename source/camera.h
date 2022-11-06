@@ -1,6 +1,9 @@
+#pragma once
 #include <glm/glm.hpp>
 
 struct Camera {
+	float psi = 0.f, theta = 0.f;
+
 	glm::mat4 translation{1.f};
 	glm::mat4 rotation{1.f};
 };

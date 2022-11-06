@@ -14,13 +14,13 @@ float linearize_depth(float depth)  {
 }
 
 void main() {
-	float d0 = texture(u_tex, gl_FragCoord.xy / u_screen_size).r;
-	float d1 = gl_FragCoord.z;
+	float d0 = linearize_depth(texture(u_tex, gl_FragCoord.xy / u_screen_size).r);
+	float d1 = linearize_depth(gl_FragCoord.z);
 	float depth_factor = clamp((d0 - d1) / 0.01, 0, 1);
-	float dist_factor = pow(max(1 - length(a_uv), 0), 2) * 1.;
+	float dist_factor = pow(max(1 - length(a_uv), 0), 2) * .7;
 	float brightness = depth_factor * dist_factor;
 
-	color = vec4(vec3(1, .3, .15), brightness);
+	color = vec4(vec3(.2, .1, 1.), brightness);
 	// color = vec4(vec3(depth_factor), 1);
 
 	// color = texture(u_tex, gl_FragCoord.xy * .5 + .5);

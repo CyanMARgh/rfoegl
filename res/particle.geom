@@ -5,7 +5,7 @@ layout (triangle_strip, max_vertices = 4) out;
 // uniform vec2 u_screen_size;
 
 const vec2 u_screen_size = vec2(800, 600);
-const float particle_size = 120;
+const float particle_size = 30;
 
 out vec2 a_uv;
 
