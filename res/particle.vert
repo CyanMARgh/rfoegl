@@ -5,11 +5,13 @@ layout (location = 0) in vec3 position;
 // layout (location = 1) in vec2 _tex_uv;
 
 uniform mat4 u_transform;
-// uniform float u_time;
+out float _freq;
 
-// out vec2 tex_uv;
+float rand(vec2 n) { 
+	return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453);
+}
 
 void main() {
 	gl_Position = u_transform * vec4(position, 1.);
-	// tex_uv = _tex_uv;
+	_freq = rand(vec2(rand(position.xy), position.z));
 }

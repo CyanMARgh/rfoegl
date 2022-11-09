@@ -24,7 +24,7 @@ struct Window {
 		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 		glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
-		window = glfwCreateWindow(1200, 900, "rfoegl", nullptr, nullptr);
+		window = glfwCreateWindow(width, height, "rfoegl", nullptr, nullptr);
 		glfwMakeContextCurrent(window);
 		glewExperimental = GL_TRUE;
 
@@ -116,8 +116,8 @@ struct Frame_Buffer {
 			glBindTexture(GL_TEXTURE_2D, color_texture_id);
 				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 			glBindTexture(GL_TEXTURE_2D, 0);
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_texture_id, 0);
 
@@ -150,9 +150,10 @@ struct Frame_Buffer {
 };
 
 int main() {
-	Window main_window(1200, 900);
+	Window main_window(1200, 800);
+	Frame_Buffer frame_buffer(2400, 1600);
+
 	Camera main_camera;
-	Frame_Buffer frame_buffer(1200, 900);
 
 	main_camera.translation = glm::translate(main_camera.translation, glm::vec3(0.f, 0.f, 3.f));
 	glfwSetKeyCallback(main_window.window, key_callback);
@@ -214,13 +215,15 @@ int main() {
 
 	PerlinNoise generator;
 	auto [blob_mesh, line_set] = make_layers_mesh([&generator] (float x, float y, float z) { 
-		float h0 = .35 - sqrt(((x - .5) * (x - .5) + (y - .5) * (y - .5) + (z - .5) * (z - .5))); 
-		float dh = generator.noise(x * 10, y * 10, z * 10) * .15;
+		x = x * 2 - 1, y = y * 2 - 1, z = z * 2 - 1;
+		float r = sqrtf(x * x + y * y) + fabsf(z);
+		float h0 = .9 - r;
+		float dh = generator.noise((x + 5) * 10, (y + 5) * 10, (z + 5) * 10) * .2;
 		return h0 + dh;
-	}, 100, 100, 12);
+	}, 60, 60, 12);
 
 	const u32 PARTICLES_COUNT = 20000;
-	std::vector<Particle> particles = spawn_particles(&line_set, PARTICLES_COUNT, 0.01);
+	std::vector<Particle> particles = spawn_particles(&line_set, PARTICLES_COUNT, 0.015);
 	Particle_Cloud particle_cloud(&(particles[0]), PARTICLES_COUNT);
 
 	//shaders
@@ -230,12 +233,14 @@ int main() {
 	// 	u32 uloc_transform_cube = glGetUniformLocation(cube_shader, "u_transform");
 	// 	u32 uloc_tex_cube = glGetUniformLocation(cube_shader, "u_tex");
 	u32 screen_shader = get_shader_program_VF("res/screen.vert", "res/screen.frag");
-		u32 uloc_tex_particle = glGetUniformLocation(screen_shader, "u_tex"); 
+		u32 uloc_screen_factor_screen = glGetUniformLocation(screen_shader, "u_screen_factor");
 		u32 uloc_tex0_screen = glGetUniformLocation(screen_shader, "u_tex0"); 
 		u32 uloc_tex1_screen = glGetUniformLocation(screen_shader, "u_tex1"); 
 	u32 particle_shader = get_shader_program_VGF("res/particle.vert", "res/particle.geom", "res/particle.frag");
+		u32 uloc_tex_particle = glGetUniformLocation(screen_shader, "u_tex"); 
 		u32 uloc_transform_particle = glGetUniformLocation(particle_shader, "u_transform");	
 		u32 uloc_size_particle = glGetUniformLocation(particle_shader, "u_screen_size");
+		u32 uloc_time_particle = glGetUniformLocation(particle_shader, "u_time");
 
 	//textures
 	Texture texture = load_texture("res/chio_rio.png");
@@ -262,10 +267,11 @@ int main() {
 		// draw(blob_mesh);
 		// glDisable(GL_DEPTH_TEST);
 
+		glViewport(0, 0, frame_buffer.width, frame_buffer.height);
 		glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer.FBO);
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, frame_buffer.depth_texture_id, 0);
 			clear();
-			/* slices */{
+			/* slices */ {
 				glm::mat4 local_transform(1.f);
 				local_transform = glm::scale(local_transform, glm::vec3(1.7f));
 				glm::mat4 transform = global_transform * local_transform;
@@ -279,6 +285,7 @@ int main() {
 			}
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+		glViewport(0, 0, main_window.width, main_window.height);
 		clear();
 
 		/* screen */ {
@@ -286,6 +293,7 @@ int main() {
 
 			set_uniform_texture(uloc_tex0_screen, frame_buffer.color_texture_id, 0);
 			set_uniform_texture(uloc_tex1_screen, frame_buffer.depth_texture_id, 1);
+			glUniform2f(uloc_screen_factor_screen, (float)main_window.width / frame_buffer.width, (float)main_window.height / frame_buffer.height);
 
 			draw(quad_mesh);
 		}
@@ -306,7 +314,8 @@ int main() {
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, frame_buffer.depth_texture_id);
 			glUniform1i(uloc_tex_particle, 0);
-			glUniform2f(uloc_size_particle, (float)frame_buffer.width, (float)frame_buffer.height);
+			glUniform2f(uloc_size_particle, (float)main_window.width, (float)main_window.height);
+			glUniform1f(uloc_time_particle, new_time);
 
 			glEnable(GL_DEPTH_TEST);
 			draw(particle_cloud);
