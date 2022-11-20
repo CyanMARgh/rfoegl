@@ -16,7 +16,7 @@ float linearize_depth(float depth)  {
 }
 
 void main() {
-	float d0 = linearize_depth(texture(u_tex, gl_FragCoord.xy / u_screen_size).r);
+	float d0 = linearize_depth(texture(u_tex, (gl_FragCoord.xy) / u_screen_size).r);
 	float d1 = linearize_depth(gl_FragCoord.z);
 
 	float depth_factor = clamp((d0 - d1) / 0.01, 0, 1);

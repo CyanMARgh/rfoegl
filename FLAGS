@@ -1,3 +1,3 @@
-all -O0 -g -ggdb
+all
 main.cpp
 result -lGLEW -lglfw -lGL -lX11 -lpthread -lXrandr -lXi -lSOIL

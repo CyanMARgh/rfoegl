@@ -3,6 +3,8 @@
 #include "utils.h"
 
 struct Point_UV { vec3 pos; vec2 uv = {0.f, 0.f}; };
+struct Point_N_UV {vec3 pos; vec3 norm; vec2 uv; };
+
 struct Mesh_UV /*Point_UV*/ {
 	u32 VBO, VAO, EBO, indices_count, points_size;
 	bool active = true;
@@ -25,3 +27,26 @@ struct Particle_Cloud /*Particle*/ {
 	Particle_Cloud(Particle* particles, u32 particles_count);
 	~Particle_Cloud();
 };
+struct Strip_Node {
+	vec3 pos = {0.f, 0.f, 0.f};
+	vec3 norm = {0.f, 0.f, 1.f};
+	float t = -1.f;
+};
+struct Line_Strip {
+	u32 VBO, VAO, points_count;
+	bool active = true;
+
+	Line_Strip(Strip_Node* points, u32 count);
+
+	// Line_Strip(Line_Strip&&);
+	Line_Strip(const Line_Strip&) = delete;
+
+	// Line_Strip& operator= (Line_Strip&&);
+	Line_Strip& operator=(const Line_Strip&) = delete;
+
+	~Line_Strip();
+};
+
+void draw(const Mesh_UV& mesh_UV);
+void draw(const Particle_Cloud& particle_cloud);
+void draw(const Line_Strip& line_strip);

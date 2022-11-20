@@ -4,6 +4,7 @@
 
 #include <SOIL/SOIL.h>
 #include <glm/gtc/type_ptr.hpp>
+#include <cassert>
 
 #include "utils.h"
 #include "camera.h"
@@ -11,6 +12,12 @@
 #include "shader.h"
 #include "marching_squares.h"
 #include "perlin.h"
+#include "defer.h"
+#include "texture.h"
+
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
 
 struct Window {
 	GLFWwindow* window;
@@ -44,52 +51,6 @@ struct Window {
 		glfwTerminate();
 	}
 };
-struct Texture {
-	u32 id;
-	int width, height;
-};
-Texture load_texture(const std::string& path) {
-	Texture texture;
-	glGenTextures(1, &texture.id);
-	
-	glBindTexture(GL_TEXTURE_2D, texture.id);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-	u8* image_data = SOIL_load_image(path.c_str(), &texture.width, &texture.height, 0, SOIL_LOAD_RGB);
-
-	printf("texture (%s): %lx, %d, %d, %s\n", path.c_str(), (u64)image_data, texture.width, texture.height, SOIL_last_result());
-	if(!image_data) exit(-1);
-	
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texture.width, texture.height, 0, GL_RGB, GL_UNSIGNED_BYTE, image_data);
-	glGenerateMipmap(GL_TEXTURE_2D);
-	SOIL_free_image_data(image_data);
-	glBindTexture(GL_TEXTURE_2D, 0);
-
-	return texture;
-}
-void set_uniform_texture(u32 location, u32 texture_id, u32 delta = 0) {
-	glActiveTexture(GL_TEXTURE0 + delta);
-	glBindTexture(GL_TEXTURE_2D, texture_id);
-	glUniform1i(location, delta);
-}
-void set_uniform(u32 location , Texture texture, u32 delta = 0) {
-	set_uniform_texture(location, texture.id, delta);
-}
-void draw(const Mesh_UV& mesh_UV) {
-	glBindVertexArray(mesh_UV.VAO);
-	glDrawElements(GL_TRIANGLES, mesh_UV.indices_count, GL_UNSIGNED_INT, 0);
-	glBindVertexArray(0);
-}
-void draw(const Particle_Cloud& particle_cloud) {
-	glBindVertexArray(particle_cloud.VAO);
-	glDrawArrays(GL_POINTS, 0, particle_cloud.particles_count);
-	// glDrawArraysInstanced(GL_POINTS, 0, particle_cloud.particles_count);
-	glBindVertexArray(0);
-}
 
 bool pressed_keys[1024] = {false};
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode) {
@@ -99,6 +60,8 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 		pressed_keys[key] = false;
 		if(key == GLFW_KEY_ESCAPE) glfwSetWindowShouldClose(window, GL_TRUE);
 	}
+
+	if(key == GLFW_MOUSE_BUTTON_LEFT) printf("!!!\n");
 }
 void clear() {
 	glClearColor(0.f, 0.f, 0.f, 1.0f);
@@ -148,8 +111,174 @@ struct Frame_Buffer {
 		glDeleteFramebuffers(1, &FBO);
 	}
 };
+void set_buffer(const Frame_Buffer* frame_buffer) {
+	glViewport(0, 0, frame_buffer->width, frame_buffer->height);
+	glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer->FBO);	
+}
+void set_window_buffer(const Window* window) {
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glViewport(0, 0, window->width, window->height);
+}
+
+glm::mat4 get_transform(const Camera* camera, const Window* window) {
+	glm::mat4 projection = glm::perspective(45.f, (float)window->width/(float)window->height, .1f, 100.f); // cam params
+	return projection * glm::inverse(camera->rotation) * glm::inverse(camera->translation);
+}
+
+vec3 fix_normal(vec3 n, vec3 v) {
+	return normalize(n - v * dot(v, n) / dot(v, v));
+}
+void fix_path_normals(std::vector<Strip_Node>& strip) {
+	u32 N = strip.size();
+	for(u32 i = 1; i < N - 1; i++) {
+		vec3 v = normalize(strip[i + 1].pos - strip[i].pos) + normalize(strip[i].pos - strip[i - 1].pos);
+		strip[i].norm = fix_normal(strip[i].norm, v);
+	}
+	strip[0].norm = fix_normal(strip[0].norm, strip[1].pos - strip[0].pos);
+	strip[N - 1].norm = fix_normal(strip[N - 1].norm, strip[N - 1].pos - strip[N - 2].pos);
+}
+void fix_cycle_normals(std::vector<Strip_Node>& strip) {
+	u32 N = strip.size();
+	for(u32 i = 0; i < N; i++) {
+		vec3 v = normalize(strip[(i + 1) % N].pos - strip[i].pos) + normalize(strip[i].pos - strip[(i + N - 1) % N].pos);
+		strip[i].norm = fix_normal(strip[i].norm, v);
+	}
+}
+std::vector<Strip_Node> make_smoother_path(const std::vector<Strip_Node>& origin, float theta = 1.f / 3.f) {
+	u32 N = origin.size();
+	std::vector<Strip_Node> result(N * 2);
+
+	result[0] = origin[0], result[N * 2 - 1] = origin[N - 1];
+	for(u32 i = 0; i < N - 1; i++) {
+		vec3 a = origin[i].pos, b = origin[i + 1].pos;
+		vec3 an = origin[i].norm, bn = origin[i + 1].norm;
+		result[i * 2 + 1].pos = lerp(a, b, theta);
+		result[i * 2 + 1].norm = lerp(an, bn, theta);
+		result[i * 2 + 2].pos = lerp(b, a, theta);
+		result[i * 2 + 2].norm = lerp(bn, an, theta);
+	}
+	fix_path_normals(result);
+	return result;
+}
+std::vector<Strip_Node> make_smoother_cycle(const std::vector<Strip_Node>& origin, float theta = 1.f / 3.f) {
+	u32 N = origin.size();
+	std::vector<Strip_Node> result(N * 2);
+
+	for(u32 i = 0; i < N; i++) {
+		vec3 a = origin[i].pos, b = origin[(i + 1) % N].pos;
+		vec3 an = origin[i].norm, bn = origin[(i + 1) % N].norm;
+		result[i * 2].pos = lerp(a, b, theta);
+		result[i * 2].norm = lerp(an, bn, theta);
+		result[i * 2 + 1].pos = lerp(b, a, theta);
+		result[i * 2 + 1].norm = lerp(bn, an, theta);
+	}
+	fix_cycle_normals(result);
+	return result;
+}
+std::vector<Strip_Node> generate_random_smooth_path(u32 count, u32* result_size_ptr) {
+	u32 iterations = 5, result_size = count << iterations;
+	*result_size_ptr = result_size;
+	std::vector<Strip_Node> origin(count);
+
+	for(u32 i = 0; i < count; i++) { origin[i] = {{randf(), randf(), (float)i / count}, rand_vec3_unit()}; }
+	fix_path_normals(origin);
+	for(u32 i = 0; i < iterations; i++) origin = make_smoother_path(origin);
+
+	std::vector<Strip_Node> result(result_size + 2);
+	result[0] = result[result_size + 1] = Strip_Node{.t = -1.f};
+	for(u32 i = 0; i < result_size; i++) { result[i + 1] = origin[i]; }	
+	
+	return result;
+}
+std::vector<Strip_Node> generate_random_smooth_cycle(u32 count, u32* result_size_ptr) {
+	// count = 4;
+
+	u32 iterations = 5, result_size = count << iterations;
+	*result_size_ptr = result_size + 1;
+
+	std::vector<Strip_Node> origin(count);
+	for(u32 i = 0; i < count; i++) { origin[i] = {rand_vec3() * 3.f, rand_vec3_unit()}; }
+
+	// std::vector<Strip_Node> origin(4);
+	// 	origin[0] = {{0.f, 0.f, 0.f}, {0.0f, 0.0f, 1.f}};
+	// 	origin[1] = {{0.f, 1.f, 0.f}, {0.0f, 0.0f, 1.f}};
+	// 	origin[2] = {{1.f, 1.f, 0.f}, {0.0f, 0.0f, 1.f}};
+	// 	origin[3] = {{1.f, 0.f, 0.f}, {0.0f, 0.0f, 1.f}};
+
+	fix_cycle_normals(origin);
+	for(u32 i = 0; i < iterations; i++) origin = make_smoother_cycle(origin, .25f);
+
+	std::vector<Strip_Node> result(result_size + 3);
+	for(u32 i = 0; i < result_size; i++) { result[i] = origin[i]; }	
+	result[result_size] = origin[0]; result[0].t = 1.f;
+	result[result_size + 1] = origin[1]; 
+	result[result_size + 2] = origin[2]; result[result_size + 2].t = 1.f;
+	
+	return result;
+}
 
 int main() {
+	Window main_window(1200, 800);
+	glfwSetKeyCallback(main_window.window, key_callback);
+
+	Camera main_camera;
+	main_camera.translation = glm::translate(main_camera.translation, glm::vec3(0.f, 0.f, 3.f));
+
+	vec3 zone_size = {1.f, 1.f, 1.f};
+	u32 POINTS_COUNT;
+	std::vector<Strip_Node> points = generate_random_smooth_cycle(30, &POINTS_COUNT);
+
+	float total_length = 0.f;
+	for(u32 i = 1, n = points.size(); i < POINTS_COUNT + 1; i++) {
+		points[i].t = total_length;
+		if(i != POINTS_COUNT) total_length += glm::length((points[i + 1].pos - points[i].pos) / zone_size);
+	}	
+
+	Line_Strip line_strip(&(points[0]), POINTS_COUNT + 2);
+
+	u32 shader_ls = get_shader_program_VGF("res/line_strip.vert", "res/line_strip.geom", "res/line_strip.frag");
+		u32 uloc_ls_zs = glGetUniformLocation(shader_ls, "u_zone_size");
+		u32 uloc_ls_pc = glGetUniformLocation(shader_ls, "u_point_count");
+		u32 uloc_ls_length = glGetUniformLocation(shader_ls, "u_length");
+		u32 uloc_ls_tex = glGetUniformLocation(shader_ls, "u_texture");
+		u32 uloc_ls_ts = glGetUniformLocation(shader_ls, "u_tex_size");
+		u32 uloc_ls_rad = glGetUniformLocation(shader_ls, "u_r");
+		u32 uloc_ls_transform = glGetUniformLocation(shader_ls, "u_transform");
+		u32 uloc_ls_time = glGetUniformLocation(shader_ls, "u_time");
+
+	Texture texture = load_texture("res/rect.png");
+
+	float prev_time = glfwGetTime();	
+	while(!glfwWindowShouldClose(main_window.window)) {
+		float new_time = glfwGetTime(), delta_time = new_time - prev_time;
+		move_camera(&main_camera, pressed_keys, delta_time); prev_time = new_time;
+		glfwPollEvents();
+		clear();
+
+		{
+			glUseProgram(shader_ls);
+				glUniform3f(uloc_ls_zs, zone_size.x, zone_size.y, zone_size.z);
+				glUniform1i(uloc_ls_pc, POINTS_COUNT + 1);
+				glUniform1f(uloc_ls_length, total_length);
+				set_uniform(uloc_ls_tex, texture);
+				glUniform2f(uloc_ls_ts, (float)texture.width, (float)texture.height);
+				glUniform1f(uloc_ls_rad, .15f);
+				glUniformMatrix4fv(uloc_ls_transform, 1, GL_FALSE, glm::value_ptr(get_transform(&main_camera, &main_window)));
+				glUniform1f(uloc_ls_time, new_time);
+
+			glEnable(GL_BLEND);
+			glBlendEquation(GL_MAX);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+				draw(line_strip);
+		}
+
+		glfwSwapBuffers(main_window.window);		
+	}
+	return 0;
+}
+
+
+int _main() {
 	Window main_window(1200, 800);
 	Frame_Buffer frame_buffer(2400, 1600);
 
@@ -158,11 +287,6 @@ int main() {
 	main_camera.translation = glm::translate(main_camera.translation, glm::vec3(0.f, 0.f, 3.f));
 	glfwSetKeyCallback(main_window.window, key_callback);
 
-	//models
-	// const u32 PARTICLE_COUNT = 10000;
-	// std::vector<Particle> particles(PARTICLE_COUNT);
-	// for(u32 i = 0; i < PARTICLE_COUNT; i++) particles[i] = {rand_vec3() * 2.f - 1.f};
-	// Particle_Cloud particle_cloud(&(particles[0]), PARTICLE_COUNT);
 	Point_UV cube_points[] = {
 		{{-0.5f, -0.5f, -0.5f},  {0.0f, 0.0f}},
 		{{-0.5f,  0.5f, -0.5f},  {1.0f, 0.0f}},
@@ -229,9 +353,6 @@ int main() {
 	//shaders
 	u32 blob_shader = get_shader_program_VF("res/cube.vert", "res/cube.frag");
 		u32 uloc_blob_transform = glGetUniformLocation(blob_shader, "u_transform");
-	// u32 cube_shader = get_shader_program_VF("res/cube.vert", "res/cube.frag");
-	// 	u32 uloc_transform_cube = glGetUniformLocation(cube_shader, "u_transform");
-	// 	u32 uloc_tex_cube = glGetUniformLocation(cube_shader, "u_tex");
 	u32 screen_shader = get_shader_program_VF("res/screen.vert", "res/screen.frag");
 		u32 uloc_screen_factor_screen = glGetUniformLocation(screen_shader, "u_screen_factor");
 		u32 uloc_tex0_screen = glGetUniformLocation(screen_shader, "u_tex0"); 
@@ -242,33 +363,17 @@ int main() {
 		u32 uloc_size_particle = glGetUniformLocation(particle_shader, "u_screen_size");
 		u32 uloc_time_particle = glGetUniformLocation(particle_shader, "u_time");
 
-	//textures
-	Texture texture = load_texture("res/chio_rio.png");
-
 	float prev_time = glfwGetTime();	
-
-	// glEnable(GL_CULL_FACE);
-	// glCullFace(GL_BACK);
 
 	while(!glfwWindowShouldClose(main_window.window)) {
 		float new_time = glfwGetTime(), delta_time = new_time - prev_time;
-		move_camera(main_camera, pressed_keys, delta_time); prev_time = new_time;
+		move_camera(&main_camera, pressed_keys, delta_time); prev_time = new_time;
 		glfwPollEvents();
 
 		glm::mat4 projection = glm::perspective(45.f, (float)main_window.width/(float)main_window.height, .1f, 100.f);
 		glm::mat4 global_transform = projection * glm::inverse(main_camera.rotation) * glm::inverse(main_camera.translation);
 
-		// clear();
-
-		// glUseProgram(blob_shader);
-		// glUniformMatrix4fv(uloc_blob_transform, 1, GL_FALSE, glm::value_ptr(global_transform));
-
-		// glEnable(GL_DEPTH_TEST);
-		// draw(blob_mesh);
-		// glDisable(GL_DEPTH_TEST);
-
-		glViewport(0, 0, frame_buffer.width, frame_buffer.height);
-		glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer.FBO);
+		set_buffer(&frame_buffer);
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, frame_buffer.depth_texture_id, 0);
 			clear();
 			/* slices */ {
@@ -277,23 +382,19 @@ int main() {
 				glm::mat4 transform = global_transform * local_transform;
 
 				glUseProgram(blob_shader);
-				glUniformMatrix4fv(uloc_blob_transform, 1, GL_FALSE, glm::value_ptr(transform));
+					glUniformMatrix4fv(uloc_blob_transform, 1, GL_FALSE, glm::value_ptr(transform));
 
-				glEnable(GL_DEPTH_TEST);
-				draw(blob_mesh);	
-				glDisable(GL_DEPTH_TEST);
+				glEnable(GL_DEPTH_TEST); DEFER(glDisable(GL_DEPTH_TEST);)
+					draw(blob_mesh);
 			}
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		set_window_buffer(&main_window);
 
-		glViewport(0, 0, main_window.width, main_window.height);
 		clear();
-
 		/* screen */ {
 			glUseProgram(screen_shader);
-
-			set_uniform_texture(uloc_tex0_screen, frame_buffer.color_texture_id, 0);
-			set_uniform_texture(uloc_tex1_screen, frame_buffer.depth_texture_id, 1);
-			glUniform2f(uloc_screen_factor_screen, (float)main_window.width / frame_buffer.width, (float)main_window.height / frame_buffer.height);
+				set_uniform_texture(uloc_tex0_screen, frame_buffer.color_texture_id, 0);
+				set_uniform_texture(uloc_tex1_screen, frame_buffer.depth_texture_id, 1);
+				glUniform2f(uloc_screen_factor_screen, (float)main_window.width / frame_buffer.width, (float)main_window.height / frame_buffer.height);
 
 			draw(quad_mesh);
 		}
@@ -303,26 +404,20 @@ int main() {
 			local_transform = glm::scale(local_transform, glm::vec3(1.7f));
 			glm::mat4 transform = global_transform * local_transform;
 
-			glDepthMask(GL_FALSE);
-			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-			// glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 			glUseProgram(particle_shader);
-			glUniformMatrix4fv(uloc_transform_particle, 1, GL_FALSE, glm::value_ptr(transform));
+				glUniformMatrix4fv(uloc_transform_particle, 1, GL_FALSE, glm::value_ptr(transform));
+				glActiveTexture(GL_TEXTURE0);
+					glBindTexture(GL_TEXTURE_2D, frame_buffer.depth_texture_id);
+				glUniform1i(uloc_tex_particle, 0);
+				glUniform2f(uloc_size_particle, (float)main_window.width, (float)main_window.height);
+				glUniform1f(uloc_time_particle, new_time);
 
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, frame_buffer.depth_texture_id);
-			glUniform1i(uloc_tex_particle, 0);
-			glUniform2f(uloc_size_particle, (float)main_window.width, (float)main_window.height);
-			glUniform1f(uloc_time_particle, new_time);
-
+			glDepthMask(GL_FALSE); DEFER(glDepthMask(GL_TRUE);)
+			glEnable(GL_BLEND);
 			glEnable(GL_DEPTH_TEST);
-			draw(particle_cloud);
-			glDisable(GL_DEPTH_TEST);
-
-			glDisable(GL_BLEND);
-			glDepthMask(GL_TRUE);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+				draw(particle_cloud);
 		}
 		glfwSwapBuffers(main_window.window);		
 	}
