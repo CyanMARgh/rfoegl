@@ -5,10 +5,9 @@
 #include "mesh.h"
 
 Mesh_UV::Mesh_UV(Point_UV* points, u32 points_count, u32* indices, u32 indices_count) {
-	// printf("(+)\n");
-	points_size = points_count * sizeof(Point_UV);
+	this->points_count = points_count;
 	this->indices_count = indices_count;
-		// indices_size = indices_count * sizeof(u32);
+
 	glGenVertexArrays(1, &VAO);
 	glGenBuffers(1, &VBO);
 	glGenBuffers(1, &EBO);
@@ -16,7 +15,7 @@ Mesh_UV::Mesh_UV(Point_UV* points, u32 points_count, u32* indices, u32 indices_c
 	glBindVertexArray(VAO);
 
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, points_size, points, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, points_count * sizeof(Point_UV), points, GL_STATIC_DRAW);
 
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Point_UV), (void*)offsetof(Point_UV, pos));
 	glEnableVertexAttribArray(0);
@@ -28,30 +27,69 @@ Mesh_UV::Mesh_UV(Point_UV* points, u32 points_count, u32* indices, u32 indices_c
 	glBindVertexArray(0);
 }
 Mesh_UV::Mesh_UV(Mesh_UV&& other) {
-	// printf("move(constructor)\n");
 	VAO = other.VAO, VBO = other.VBO, EBO = other.EBO;
-	indices_count = other.indices_count, points_size = other.points_size;
+	indices_count = other.indices_count, points_count = other.points_count;
 	other.active = false;
 }
 Mesh_UV& Mesh_UV::operator= (Mesh_UV&& other) {
-	// printf("move(operator=)\n");
 	if(this == &other) return *this;
 	VAO = other.VAO, VBO = other.VBO, EBO = other.EBO;
-	indices_count = other.indices_count, points_size = other.points_size;
+	indices_count = other.indices_count, points_count = other.points_count;
 	other.active = false;
 	return *this;
 }
-
 Mesh_UV::~Mesh_UV() {
 	if(active) {
-		// printf("(-)\n");
 		glDeleteVertexArrays(1, &VAO);
 		glDeleteBuffers(1, &VBO);
-		glDeleteBuffers(1, &EBO);		
-	} else {
-		// printf("deleteing empty\n");
+		glDeleteBuffers(1, &EBO);
 	}
 }
+
+Mesh_N_UV::Mesh_N_UV(Point_N_UV* points, u32 points_count, u32* indices, u32 indices_count) {
+	this->points_count = points_count;
+	this->indices_count = indices_count;
+
+	glGenVertexArrays(1, &VAO);
+	glGenBuffers(1, &VBO);
+	glGenBuffers(1, &EBO);
+
+	glBindVertexArray(VAO);
+
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBufferData(GL_ARRAY_BUFFER, points_count * sizeof(Point_N_UV), points, GL_STATIC_DRAW);
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Point_N_UV), (void*)offsetof(Point_N_UV, pos));
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Point_N_UV), (void*)offsetof(Point_N_UV, norm));
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Point_N_UV), (void*)offsetof(Point_N_UV, uv));
+	glEnableVertexAttribArray(2);
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_count * sizeof(u32), indices, GL_STATIC_DRAW);
+	glBindVertexArray(0);
+}
+Mesh_N_UV::Mesh_N_UV(Mesh_N_UV&& other) {
+	VAO = other.VAO, VBO = other.VBO, EBO = other.EBO;
+	indices_count = other.indices_count, points_count = other.points_count;
+	other.active = false;
+}
+Mesh_N_UV& Mesh_N_UV::operator=(Mesh_N_UV&& other) {
+	if(this == &other) return *this;
+	VAO = other.VAO, VBO = other.VBO, EBO = other.EBO;
+	indices_count = other.indices_count, points_count = other.points_count;
+	other.active = false;
+	return *this;
+}
+Mesh_N_UV::~Mesh_N_UV() {
+	if(active) {
+		glDeleteVertexArrays(1, &VAO);
+		glDeleteBuffers(1, &VBO);
+		glDeleteBuffers(1, &EBO);
+	}
+}
+
 
 Particle_Cloud::Particle_Cloud(Particle* particles, u32 particles_count) {
 	this->particles_count = particles_count;
@@ -100,9 +138,14 @@ Line_Strip::~Line_Strip() {
 }
 
 
-void draw(const Mesh_UV& mesh_UV) {
-	glBindVertexArray(mesh_UV.VAO);
-	glDrawElements(GL_TRIANGLES, mesh_UV.indices_count, GL_UNSIGNED_INT, 0);
+void draw(const Mesh_UV& mesh_uv) {
+	glBindVertexArray(mesh_uv.VAO);
+	glDrawElements(GL_TRIANGLES, mesh_uv.indices_count, GL_UNSIGNED_INT, 0);
+	glBindVertexArray(0);
+}
+void draw(const Mesh_N_UV& mesh_n_uv) {
+	glBindVertexArray(mesh_n_uv.VAO);
+	glDrawElements(GL_TRIANGLES, mesh_n_uv.indices_count, GL_UNSIGNED_INT, 0);
 	glBindVertexArray(0);
 }
 void draw(const Particle_Cloud& particle_cloud) {

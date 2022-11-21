@@ -2,11 +2,11 @@
 
 #include "utils.h"
 
-struct Point_UV { vec3 pos; vec2 uv = {0.f, 0.f}; };
-struct Point_N_UV {vec3 pos; vec3 norm; vec2 uv; };
+struct Point_UV { vec3 pos = {0.f, 0.f, 0.f}; vec2 uv = {0.f, 0.f}; };
+struct Point_N_UV {vec3 pos = {0.f, 0.f, 0.f}; vec3 norm = {0.f, 0.f, 0.f}; vec2 uv = {0.f, 0.f}; };
 
 struct Mesh_UV /*Point_UV*/ {
-	u32 VBO, VAO, EBO, indices_count, points_size;
+	u32 VBO, VAO, EBO, indices_count, points_count;
 	bool active = true;
 
 	Mesh_UV(Point_UV* points, u32 points_count, u32* indices, u32 indices_count);
@@ -18,6 +18,20 @@ struct Mesh_UV /*Point_UV*/ {
 	Mesh_UV& operator=(const Mesh_UV&) = delete;
 
 	~Mesh_UV();
+};
+struct Mesh_N_UV /*Point_N_UV*/ {
+	u32 VBO, VAO, EBO, indices_count, points_count;
+	bool active = true;
+
+	Mesh_N_UV(Point_N_UV* points, u32 points_count, u32* indices, u32 indices_count);
+
+	Mesh_N_UV(Mesh_N_UV&&);
+	Mesh_N_UV(const Mesh_N_UV&) = delete;
+
+	Mesh_N_UV& operator= (Mesh_N_UV&&);
+	Mesh_N_UV& operator=(const Mesh_N_UV&) = delete;
+
+	~Mesh_N_UV();
 };
 
 struct Particle { vec3 pos; };
@@ -47,6 +61,7 @@ struct Line_Strip {
 	~Line_Strip();
 };
 
-void draw(const Mesh_UV& mesh_UV);
+void draw(const Mesh_UV& mesh_uv);
+void draw(const Mesh_N_UV& mesh_n_uv);
 void draw(const Particle_Cloud& particle_cloud);
 void draw(const Line_Strip& line_strip);

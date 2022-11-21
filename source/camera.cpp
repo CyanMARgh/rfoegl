@@ -30,3 +30,7 @@ void move_camera(Camera* camera, const bool* pressed_keys, float delta_time) {
 
 	camera->rotation = glm::rotate(camera->rotation, camera->theta, glm::vec3(1.f, 0.f, 0.f));
 }
+vec3 get_position(Camera camera) {
+	vec4 p4 = camera.translation * vec4{0.f, 0.f, 0.f, 1.f};
+	return {p4.x, p4.y, p4.z};
+}

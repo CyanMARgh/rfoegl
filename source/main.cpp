@@ -14,10 +14,7 @@
 #include "perlin.h"
 #include "defer.h"
 #include "texture.h"
-
-#include <assimp/Importer.hpp>
-#include <assimp/scene.h>
-#include <assimp/postprocess.h>
+#include "model.h"
 
 struct Window {
 	GLFWwindow* window;
@@ -224,6 +221,50 @@ int main() {
 	Camera main_camera;
 	main_camera.translation = glm::translate(main_camera.translation, glm::vec3(0.f, 0.f, 3.f));
 
+	Model teapot("./res/6th_platonic_solid.obj");
+	// Model teapot("./res/cube.obj");
+
+	u32 shader_teapot = get_shader_program_VF("res/default.vert", "res/default.frag");
+		u32 uloc_teapot_trworld = glGetUniformLocation(shader_teapot, "u_trworld");
+		u32 uloc_teapot_trscreen = glGetUniformLocation(shader_teapot, "u_trscreen");
+		u32 uloc_teapot_view_pos = glGetUniformLocation(shader_teapot, "u_view_pos");
+
+	float prev_time = glfwGetTime();	
+	
+	glEnable(GL_CULL_FACE);  
+	glEnable(GL_DEPTH_TEST);
+
+	while(!glfwWindowShouldClose(main_window.window)) {
+		float new_time = glfwGetTime(), delta_time = new_time - prev_time;
+		move_camera(&main_camera, pressed_keys, delta_time); prev_time = new_time;
+		glm::mat4 screen_transform = get_transform(&main_camera, &main_window);
+
+		glfwPollEvents();
+		clear();
+		{
+			glm::mat4 world_transform(1.f);
+
+			glUseProgram(shader_teapot);
+				glUniformMatrix4fv(uloc_teapot_trworld, 1, GL_FALSE, (GLfloat*)&world_transform);
+				glUniformMatrix4fv(uloc_teapot_trscreen, 1, GL_FALSE, (GLfloat*)&screen_transform);
+				vec3 eye = get_position(main_camera);
+				glUniform3f(uloc_teapot_view_pos, eye.x, eye.y, eye.z);
+
+				draw(teapot);
+		}
+
+		glfwSwapBuffers(main_window.window);		
+	}
+	return 0;
+}
+
+int main_1() {
+	Window main_window(1200, 800);
+	glfwSetKeyCallback(main_window.window, key_callback);
+
+	Camera main_camera;
+	main_camera.translation = glm::translate(main_camera.translation, glm::vec3(0.f, 0.f, 3.f));
+
 	vec3 zone_size = {1.f, 1.f, 1.f};
 	u32 POINTS_COUNT;
 	std::vector<Strip_Node> points = generate_random_smooth_cycle(30, &POINTS_COUNT);
@@ -278,7 +319,7 @@ int main() {
 }
 
 
-int _main() {
+int main_0() {
 	Window main_window(1200, 800);
 	Frame_Buffer frame_buffer(2400, 1600);
 
