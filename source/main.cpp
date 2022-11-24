@@ -15,39 +15,8 @@
 #include "defer.h"
 #include "texture.h"
 #include "model.h"
+#include "window.h"
 
-struct Window {
-	GLFWwindow* window;
-	int width, height;
-	
-	Window(u32 _width, u32 _height) {
-		width = _width, height = _height;
-		glfwInit();
-		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-		glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
-
-		window = glfwCreateWindow(width, height, "rfoegl", nullptr, nullptr);
-		glfwMakeContextCurrent(window);
-		glewExperimental = GL_TRUE;
-
-		if(!window) {
-			puts("Failed to create GLFW window\n");
-			glfwTerminate();
-			exit(-1);
-		}
-		if(glewInit() != GLEW_OK) {
-			puts("Failed to initialize GLEW\n");
-			exit(-1);
-		}
-		glfwGetFramebufferSize(window, &width, &height);  
-		glViewport(0, 0, width, height);
-	}
-	~Window() {
-		glfwTerminate();
-	}
-};
 
 bool pressed_keys[1024] = {false};
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode) {
@@ -115,11 +84,6 @@ void set_buffer(const Frame_Buffer* frame_buffer) {
 void set_window_buffer(const Window* window) {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glViewport(0, 0, window->width, window->height);
-}
-
-glm::mat4 get_transform(const Camera* camera, const Window* window) {
-	glm::mat4 projection = glm::perspective(45.f, (float)window->width/(float)window->height, .1f, 100.f); // cam params
-	return projection * glm::inverse(camera->rotation) * glm::inverse(camera->translation);
 }
 
 vec3 fix_normal(vec3 n, vec3 v) {
@@ -221,18 +185,21 @@ int main() {
 	Camera main_camera;
 	main_camera.translation = glm::translate(main_camera.translation, glm::vec3(0.f, 0.f, 3.f));
 
-	Model teapot("./res/6th_platonic_solid.obj");
+	Model teapot("./res/backpack/backpack.obj");
 	// Model teapot("./res/cube.obj");
 
 	u32 shader_teapot = get_shader_program_VF("res/default.vert", "res/default.frag");
 		u32 uloc_teapot_trworld = glGetUniformLocation(shader_teapot, "u_trworld");
 		u32 uloc_teapot_trscreen = glGetUniformLocation(shader_teapot, "u_trscreen");
 		u32 uloc_teapot_view_pos = glGetUniformLocation(shader_teapot, "u_view_pos");
+		u32 uloc_teapot_tex_diff = glGetUniformLocation(shader_teapot, "u_tex_diff");
+		u32 uloc_teapot_tex_spec = glGetUniformLocation(shader_teapot, "u_tex_spec");
 
 	float prev_time = glfwGetTime();	
 	
 	glEnable(GL_CULL_FACE);  
-	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_DEPTH_TEST);  
+	glEnable(GL_MULTISAMPLE);
 
 	while(!glfwWindowShouldClose(main_window.window)) {
 		float new_time = glfwGetTime(), delta_time = new_time - prev_time;
@@ -250,7 +217,7 @@ int main() {
 				vec3 eye = get_position(main_camera);
 				glUniform3f(uloc_teapot_view_pos, eye.x, eye.y, eye.z);
 
-				draw(teapot);
+				draw(teapot, uloc_teapot_tex_diff, uloc_teapot_tex_spec);
 		}
 
 		glfwSwapBuffers(main_window.window);		
@@ -317,7 +284,6 @@ int main_1() {
 	}
 	return 0;
 }
-
 
 int main_0() {
 	Window main_window(1200, 800);
@@ -406,6 +372,8 @@ int main_0() {
 
 	float prev_time = glfwGetTime();	
 
+	glEnable(GL_MULTISAMPLE);
+
 	while(!glfwWindowShouldClose(main_window.window)) {
 		float new_time = glfwGetTime(), delta_time = new_time - prev_time;
 		move_camera(&main_camera, pressed_keys, delta_time); prev_time = new_time;
@@ -455,8 +423,8 @@ int main_0() {
 				glUniform1f(uloc_time_particle, new_time);
 
 			glDepthMask(GL_FALSE); DEFER(glDepthMask(GL_TRUE);)
-			glEnable(GL_BLEND);
 			glEnable(GL_DEPTH_TEST);
+			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 				draw(particle_cloud);
 		}

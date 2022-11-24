@@ -11,6 +11,7 @@
 
 struct Model {
 	std::vector<Mesh_N_UV> meshes;
+
 	std::string directory;
 
 	Model(const std::string& path);
@@ -18,6 +19,6 @@ struct Model {
 	void load_model(const std::string& path);
 	void process_node(aiNode *node, const aiScene *scene);
 	Mesh_N_UV process_mesh(aiMesh *mesh, const aiScene *scene);
-	std::vector<Texture> load_material_textures(aiMaterial *mat, aiTextureType type, std::string type_name);
+	void load_material_textures(std::vector<Texture>& textures, aiMaterial *mat, aiTextureType type, std::string type_name);
 };
-void draw(const Model& model);
+void draw(const Model& model, u32 uloc_diff, u32 uloc_spec);

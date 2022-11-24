@@ -46,9 +46,11 @@ Mesh_UV::~Mesh_UV() {
 	}
 }
 
-Mesh_N_UV::Mesh_N_UV(Point_N_UV* points, u32 points_count, u32* indices, u32 indices_count) {
+Mesh_N_UV::Mesh_N_UV(Point_N_UV* points, u32 points_count, u32* indices, u32 indices_count, std::vector<Texture> textures) {
 	this->points_count = points_count;
 	this->indices_count = indices_count;
+
+	this->textures = std::move(textures);
 
 	glGenVertexArrays(1, &VAO);
 	glGenBuffers(1, &VBO);
@@ -73,6 +75,7 @@ Mesh_N_UV::Mesh_N_UV(Point_N_UV* points, u32 points_count, u32* indices, u32 ind
 Mesh_N_UV::Mesh_N_UV(Mesh_N_UV&& other) {
 	VAO = other.VAO, VBO = other.VBO, EBO = other.EBO;
 	indices_count = other.indices_count, points_count = other.points_count;
+	textures = std::move(other.textures);
 	other.active = false;
 }
 Mesh_N_UV& Mesh_N_UV::operator=(Mesh_N_UV&& other) {
@@ -80,6 +83,7 @@ Mesh_N_UV& Mesh_N_UV::operator=(Mesh_N_UV&& other) {
 	VAO = other.VAO, VBO = other.VBO, EBO = other.EBO;
 	indices_count = other.indices_count, points_count = other.points_count;
 	other.active = false;
+	textures = std::move(other.textures);
 	return *this;
 }
 Mesh_N_UV::~Mesh_N_UV() {
@@ -143,7 +147,10 @@ void draw(const Mesh_UV& mesh_uv) {
 	glDrawElements(GL_TRIANGLES, mesh_uv.indices_count, GL_UNSIGNED_INT, 0);
 	glBindVertexArray(0);
 }
-void draw(const Mesh_N_UV& mesh_n_uv) {
+void draw(const Mesh_N_UV& mesh_n_uv, u32 uloc_diff, u32 uloc_spec) {
+	set_uniform(uloc_diff, mesh_n_uv.textures[0], 0);
+	set_uniform(uloc_spec, mesh_n_uv.textures[1], 1);
+
 	glBindVertexArray(mesh_n_uv.VAO);
 	glDrawElements(GL_TRIANGLES, mesh_n_uv.indices_count, GL_UNSIGNED_INT, 0);
 	glBindVertexArray(0);

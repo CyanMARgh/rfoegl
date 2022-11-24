@@ -28,7 +28,7 @@ void Model::load_model(const std::string& path) {
 
 void Model::process_node(aiNode *node, const aiScene *scene) {
 	for(u32 i = 0; i < node->mNumMeshes; i++) {
-		aiMesh *mesh = scene->mMeshes[node->mMeshes[1]];
+		aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
 		meshes.push_back(process_mesh(mesh, scene));
 	}
 	for(u32 i = 0; i < node->mNumChildren; i++) {
@@ -77,13 +77,27 @@ Mesh_N_UV Model::process_mesh(aiMesh *mesh, const aiScene *scene) {
 			vertices[i].norm = normalize(vertices[i].norm);
 		}
 	}
-	return Mesh_N_UV(&(vertices[0]), vertices.size(), &(ids[0]), ids.size());
+	std::vector<Texture> textures;
+	if(mesh->mMaterialIndex >= 0) {
+		aiMaterial *mat = scene->mMaterials[mesh->mMaterialIndex];
+		load_material_textures(textures, mat, aiTextureType_DIFFUSE, "texture_diffuse");
+		load_material_textures(textures, mat, aiTextureType_SPECULAR, "texture_specular");
+	}
+	// printf("size = %d\n", vertices.size());
+	return Mesh_N_UV(&(vertices[0]), vertices.size(), &(ids[0]), ids.size(), textures);
 }
 
-std::vector<Texture> Model::load_material_textures(aiMaterial *mat, aiTextureType type, std::string type_name) {
-	return {};
+void Model::load_material_textures(std::vector<Texture>& textures, aiMaterial *mat, aiTextureType type, std::string type_name) {
+	for(u32 i = 0; i < mat->GetTextureCount(type); i++) {
+		aiString str0;
+		mat->GetTexture(type, i, &str0);
+		Texture texture;
+		std::string str1 = str0.C_Str();
+		texture = load_texture(directory + "/" + str1);
+		textures.push_back(texture);
+	}
 }
 
-void draw(const Model& model) {
-	for(const auto& mesh : model.meshes) { draw(mesh); }
+void draw(const Model& model, u32 uloc_diff, u32 uloc_spec) {
+	for(const auto& mesh : model.meshes) { draw(mesh, uloc_diff, uloc_spec); }
 }

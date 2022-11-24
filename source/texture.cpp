@@ -3,16 +3,18 @@
 #include <GLFW/glfw3.h>
 #include <SOIL/SOIL.h>
 
+#include <map>
+
 #include "texture.h"
 
-Texture load_texture(const std::string& path) {
+Texture _load_texture(const std::string& path) {
 	Texture texture;
 	glGenTextures(1, &texture.id);
 	
 	glBindTexture(GL_TEXTURE_2D, texture.id);
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
@@ -28,6 +30,17 @@ Texture load_texture(const std::string& path) {
 
 	return texture;
 }
+
+std::map<std::string, Texture> loaded_textures = {};
+Texture load_texture(const std::string& path) {
+	if(auto F = loaded_textures.find(path); F != loaded_textures.end()) {
+		return F->second;
+	} else {
+		Texture texture = _load_texture(path);
+		return loaded_textures[path] = texture;
+	}
+}
+
 void set_uniform_texture(u32 location, u32 texture_id, u32 delta) {
 	glActiveTexture(GL_TEXTURE0 + delta);
 	glBindTexture(GL_TEXTURE_2D, texture_id);

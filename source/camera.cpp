@@ -34,3 +34,7 @@ vec3 get_position(Camera camera) {
 	vec4 p4 = camera.translation * vec4{0.f, 0.f, 0.f, 1.f};
 	return {p4.x, p4.y, p4.z};
 }
+glm::mat4 get_transform(const Camera* camera, const Window* window) {
+	glm::mat4 projection = glm::perspective(45.f, (float)window->width/(float)window->height, .1f, 100.f); // cam params
+	return projection * glm::inverse(camera->rotation) * glm::inverse(camera->translation);
+}

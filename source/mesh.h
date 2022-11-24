@@ -1,6 +1,8 @@
 #pragma once
 
 #include "utils.h"
+#include "texture.h"
+#include <vector>
 
 struct Point_UV { vec3 pos = {0.f, 0.f, 0.f}; vec2 uv = {0.f, 0.f}; };
 struct Point_N_UV {vec3 pos = {0.f, 0.f, 0.f}; vec3 norm = {0.f, 0.f, 0.f}; vec2 uv = {0.f, 0.f}; };
@@ -21,9 +23,10 @@ struct Mesh_UV /*Point_UV*/ {
 };
 struct Mesh_N_UV /*Point_N_UV*/ {
 	u32 VBO, VAO, EBO, indices_count, points_count;
+	std::vector<Texture> textures;
 	bool active = true;
 
-	Mesh_N_UV(Point_N_UV* points, u32 points_count, u32* indices, u32 indices_count);
+	Mesh_N_UV(Point_N_UV* points, u32 points_count, u32* indices, u32 indices_count, std::vector<Texture> textures = {});
 
 	Mesh_N_UV(Mesh_N_UV&&);
 	Mesh_N_UV(const Mesh_N_UV&) = delete;
@@ -62,6 +65,6 @@ struct Line_Strip {
 };
 
 void draw(const Mesh_UV& mesh_uv);
-void draw(const Mesh_N_UV& mesh_n_uv);
+void draw(const Mesh_N_UV& mesh_n_uv, u32 uloc_diff, u32 uloc_spec);
 void draw(const Particle_Cloud& particle_cloud);
 void draw(const Line_Strip& line_strip);
