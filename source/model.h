@@ -21,4 +21,4 @@ struct Model {
 	Mesh_N_UV process_mesh(aiMesh *mesh, const aiScene *scene);
 	void load_material_textures(std::vector<Texture>& textures, aiMaterial *mat, aiTextureType type, std::string type_name);
 };
-void draw(const Model& model, u32 uloc_diff, u32 uloc_spec);
+void draw(const Model& model, u32 uloc_diff, u32 uloc_spec, u32 uloc_norm);

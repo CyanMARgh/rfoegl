@@ -4,6 +4,10 @@
 
 #include "mesh.h"
 
+#define ADD_ATTRIB(id, struct_name, field_name)\
+glVertexAttribPointer(id, sizeof(std::declval<struct_name>().field_name) / sizeof(float), GL_FLOAT, GL_FALSE, sizeof(struct_name), (void*)offsetof(struct_name, field_name));\
+glEnableVertexAttribArray(id);
+
 Mesh_UV::Mesh_UV(Point_UV* points, u32 points_count, u32* indices, u32 indices_count) {
 	this->points_count = points_count;
 	this->indices_count = indices_count;
@@ -17,11 +21,9 @@ Mesh_UV::Mesh_UV(Point_UV* points, u32 points_count, u32* indices, u32 indices_c
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferData(GL_ARRAY_BUFFER, points_count * sizeof(Point_UV), points, GL_STATIC_DRAW);
 
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Point_UV), (void*)offsetof(Point_UV, pos));
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Point_UV), (void*)offsetof(Point_UV, uv));
-	glEnableVertexAttribArray(1);
-
+	ADD_ATTRIB(0, Point_UV, pos);
+	ADD_ATTRIB(1, Point_UV, uv);
+	
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_count * sizeof(u32), indices, GL_STATIC_DRAW);
 	glBindVertexArray(0);
@@ -61,12 +63,12 @@ Mesh_N_UV::Mesh_N_UV(Point_N_UV* points, u32 points_count, u32* indices, u32 ind
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferData(GL_ARRAY_BUFFER, points_count * sizeof(Point_N_UV), points, GL_STATIC_DRAW);
 
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Point_N_UV), (void*)offsetof(Point_N_UV, pos));
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Point_N_UV), (void*)offsetof(Point_N_UV, norm));
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Point_N_UV), (void*)offsetof(Point_N_UV, uv));
-	glEnableVertexAttribArray(2);
+	ADD_ATTRIB(0, Point_N_UV, pos);
+	ADD_ATTRIB(1, Point_N_UV, uv);
+
+	ADD_ATTRIB(2, Point_N_UV, n1);
+	ADD_ATTRIB(3, Point_N_UV, n2);
+	ADD_ATTRIB(4, Point_N_UV, n3);
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_count * sizeof(u32), indices, GL_STATIC_DRAW);
@@ -147,9 +149,13 @@ void draw(const Mesh_UV& mesh_uv) {
 	glDrawElements(GL_TRIANGLES, mesh_uv.indices_count, GL_UNSIGNED_INT, 0);
 	glBindVertexArray(0);
 }
-void draw(const Mesh_N_UV& mesh_n_uv, u32 uloc_diff, u32 uloc_spec) {
-	set_uniform(uloc_diff, mesh_n_uv.textures[0], 0);
-	set_uniform(uloc_spec, mesh_n_uv.textures[1], 1);
+void draw(const Mesh_N_UV& mesh_n_uv, u32 uloc_diff, u32 uloc_spec, u32 uloc_norm) {
+	//TODO return invalid texture
+	if(mesh_n_uv.textures.size() >= 3) {
+		set_uniform(uloc_diff, mesh_n_uv.textures[0], 0);
+		set_uniform(uloc_spec, mesh_n_uv.textures[1], 1);
+		set_uniform(uloc_norm, mesh_n_uv.textures[2], 2);
+	}
 
 	glBindVertexArray(mesh_n_uv.VAO);
 	glDrawElements(GL_TRIANGLES, mesh_n_uv.indices_count, GL_UNSIGNED_INT, 0);

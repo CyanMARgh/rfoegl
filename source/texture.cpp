@@ -7,7 +7,7 @@
 
 #include "texture.h"
 
-Texture _load_texture(const std::string& path) {
+Texture _load_texture(const std::string& path, bool gamma_correction) {
 	Texture texture;
 	glGenTextures(1, &texture.id);
 	
@@ -20,10 +20,10 @@ Texture _load_texture(const std::string& path) {
 
 	u8* image_data = SOIL_load_image(path.c_str(), &texture.width, &texture.height, 0, SOIL_LOAD_RGB);
 
-	printf("texture (%s): %lx, %d, %d, %s\n", path.c_str(), (u64)image_data, texture.width, texture.height, SOIL_last_result());
+	printf("texture (%s): %lx, %d, %d, %s, gamma correction: %c\n", path.c_str(), (u64)image_data, texture.width, texture.height, SOIL_last_result(), gamma_correction ? '+' : '-');
 	if(!image_data) exit(-1);
 	
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texture.width, texture.height, 0, GL_RGB, GL_UNSIGNED_BYTE, image_data);
+	glTexImage2D(GL_TEXTURE_2D, 0, gamma_correction ? GL_SRGB : GL_RGB, texture.width, texture.height, 0, GL_RGB, GL_UNSIGNED_BYTE, image_data);
 	glGenerateMipmap(GL_TEXTURE_2D);
 	SOIL_free_image_data(image_data);
 	glBindTexture(GL_TEXTURE_2D, 0);
@@ -32,11 +32,11 @@ Texture _load_texture(const std::string& path) {
 }
 
 std::map<std::string, Texture> loaded_textures = {};
-Texture load_texture(const std::string& path) {
+Texture load_texture(const std::string& path, bool gamma_correction) {
 	if(auto F = loaded_textures.find(path); F != loaded_textures.end()) {
 		return F->second;
 	} else {
-		Texture texture = _load_texture(path);
+		Texture texture = _load_texture(path, gamma_correction);
 		return loaded_textures[path] = texture;
 	}
 }

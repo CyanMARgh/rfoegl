@@ -29,8 +29,8 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
 	if(key == GLFW_MOUSE_BUTTON_LEFT) printf("!!!\n");
 }
-void clear() {
-	glClearColor(0.f, 0.f, 0.f, 1.0f);
+void clear(vec3 rgb = {0.f, 0.f, 0.f}) {
+	glClearColor(rgb.r, rgb.g, rgb.b, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 struct Frame_Buffer {
@@ -186,21 +186,27 @@ int main() {
 	main_camera.translation = glm::translate(main_camera.translation, glm::vec3(0.f, 0.f, 3.f));
 
 	Model teapot("./res/backpack/backpack.obj");
+	// Model teapot("./res/6th_platonic_solid.obj");
 	// Model teapot("./res/cube.obj");
 
-	u32 shader_teapot = get_shader_program_VF("res/default.vert", "res/default.frag");
-		u32 uloc_teapot_trworld = glGetUniformLocation(shader_teapot, "u_trworld");
-		u32 uloc_teapot_trscreen = glGetUniformLocation(shader_teapot, "u_trscreen");
-		u32 uloc_teapot_view_pos = glGetUniformLocation(shader_teapot, "u_view_pos");
-		u32 uloc_teapot_tex_diff = glGetUniformLocation(shader_teapot, "u_tex_diff");
-		u32 uloc_teapot_tex_spec = glGetUniformLocation(shader_teapot, "u_tex_spec");
+	u32 shader_default = get_shader_program_VF("res/default.vert", "res/default.frag");
+		u32 uloc_teapot_trworld = glGetUniformLocation(shader_default, "u_trworld");
+		u32 uloc_teapot_trscreen = glGetUniformLocation(shader_default, "u_trscreen");
+		u32 uloc_teapot_view_pos = glGetUniformLocation(shader_default, "u_view_pos");
+		u32 uloc_teapot_tex_diff = glGetUniformLocation(shader_default, "u_tex_diff");
+		u32 uloc_teapot_tex_spec = glGetUniformLocation(shader_default, "u_tex_spec");
+		u32 uloc_teapot_tex_norm = glGetUniformLocation(shader_default, "u_tex_norm");
+		u32 uloc_teapot_time = glGetUniformLocation(shader_default, "u_time");
+	u32 shader_normals = get_shader_program_VGF("res/default.vert", "res/normals.geom", "res/lamp.frag");
+		u32 uloc_normals_trworld = glGetUniformLocation(shader_normals, "u_trworld");
+		u32 uloc_normals_trscreen = glGetUniformLocation(shader_normals, "u_trscreen");
 
 	float prev_time = glfwGetTime();	
 	
 	glEnable(GL_CULL_FACE);  
 	glEnable(GL_DEPTH_TEST);  
 	glEnable(GL_MULTISAMPLE);
-
+	
 	while(!glfwWindowShouldClose(main_window.window)) {
 		float new_time = glfwGetTime(), delta_time = new_time - prev_time;
 		move_camera(&main_camera, pressed_keys, delta_time); prev_time = new_time;
@@ -211,15 +217,134 @@ int main() {
 		{
 			glm::mat4 world_transform(1.f);
 
-			glUseProgram(shader_teapot);
+			glUseProgram(shader_default);
 				glUniformMatrix4fv(uloc_teapot_trworld, 1, GL_FALSE, (GLfloat*)&world_transform);
 				glUniformMatrix4fv(uloc_teapot_trscreen, 1, GL_FALSE, (GLfloat*)&screen_transform);
 				vec3 eye = get_position(main_camera);
 				glUniform3f(uloc_teapot_view_pos, eye.x, eye.y, eye.z);
+				glUniform1f(uloc_teapot_time, new_time);
+				
+				draw(teapot, uloc_teapot_tex_diff, uloc_teapot_tex_spec, uloc_teapot_tex_norm);
 
-				draw(teapot, uloc_teapot_tex_diff, uloc_teapot_tex_spec);
+			// glUseProgram(shader_normals);
+			// 	glUniformMatrix4fv(uloc_normals_trworld, 1, GL_FALSE, (GLfloat*)&world_transform);
+			// 	glUniformMatrix4fv(uloc_normals_trscreen, 1, GL_FALSE, (GLfloat*)&screen_transform);
+
+			// 	draw(teapot, uloc_teapot_tex_diff, uloc_teapot_tex_spec, uloc_teapot_tex_norm);
 		}
 
+		glfwSwapBuffers(main_window.window);		
+	}
+	return 0;
+}
+
+int main_2() {
+	Window main_window(1200, 800);
+	Frame_Buffer frame_buffer(2400, 1600);
+
+	Camera main_camera;
+
+	main_camera.translation = glm::translate(main_camera.translation, glm::vec3(0.f, 0.f, 3.f));
+	glfwSetKeyCallback(main_window.window, key_callback);
+
+	Point_UV quad_points[] = {
+		{{-1, -1,  0},  {0, 0}},
+		{{ 1, -1,  0},  {1, 0}},
+		{{ 1,  1,  0},  {1, 1}},
+		{{-1,  1,  0},  {0, 1}},
+	};
+	u32 quad_ids[] = {0, 1, 2, 0, 2, 3};
+	Mesh_UV quad_mesh(quad_points, 4, quad_ids, 6);
+
+	// PerlinNoise generator;
+	// auto [blob_mesh, line_set] = make_layers_mesh([&generator] (float x, float y, float z) { 
+	// 	x = x * 2 - 1, y = y * 2 - 1, z = z * 2 - 1;
+	// 	float r = sqrtf(x * x + y * y) + fabsf(z);
+	// 	float h0 = .9 - r;
+	// 	float dh = generator.noise((x + 5) * 10, (y + 5) * 10, (z + 5) * 10) * .2;
+	// 	return h0 + dh;
+	// }, 60, 60, 12);
+
+	const u32 PARTICLES_COUNT = 200;
+	// std::vector<Particle> particles = spawn_particles(&line_set, PARTICLES_COUNT, 0.015);
+	std::vector<Particle> particles(PARTICLES_COUNT); for(u32 i = 0; i < PARTICLES_COUNT; i++) {
+		vec2 p2 = rand_vec2_unit();
+		particles[i].pos = vec3{p2.x, p2.y, 0.f} + (rand_vec3() * .3f - .15f);
+	}
+	Particle_Cloud particle_cloud(&(particles[0]), PARTICLES_COUNT);
+
+	//shaders
+	// u32 blob_shader = get_shader_program_VF("res/cube.vert", "res/cube.frag");
+	// 	u32 uloc_blob_transform = glGetUniformLocation(blob_shader, "u_transform");
+	u32 screen_shader = get_shader_program_VF("res/screen.vert", "res/screen.frag");
+		u32 uloc_screen_factor_screen = glGetUniformLocation(screen_shader, "u_screen_factor");
+		u32 uloc_tex0_screen = glGetUniformLocation(screen_shader, "u_tex0"); 
+		u32 uloc_tex1_screen = glGetUniformLocation(screen_shader, "u_tex1"); 
+	u32 particle_shader = get_shader_program_VGF("res/particle.vert", "res/particle.geom", "res/particle2.frag");
+		u32 uloc_tex_particle = glGetUniformLocation(screen_shader, "u_tex"); 
+		u32 uloc_transform_particle = glGetUniformLocation(particle_shader, "u_transform");	
+		u32 uloc_size_particle = glGetUniformLocation(particle_shader, "u_screen_size");
+		u32 uloc_time_particle = glGetUniformLocation(particle_shader, "u_time");
+
+	float prev_time = glfwGetTime();	
+
+	glEnable(GL_MULTISAMPLE);
+
+	while(!glfwWindowShouldClose(main_window.window)) {
+		float new_time = glfwGetTime(), delta_time = new_time - prev_time;
+		move_camera(&main_camera, pressed_keys, delta_time); prev_time = new_time;
+		glfwPollEvents();
+
+		glm::mat4 projection = glm::perspective(45.f, (float)main_window.width/(float)main_window.height, .1f, 100.f);
+		glm::mat4 global_transform = projection * glm::inverse(main_camera.rotation) * glm::inverse(main_camera.translation);
+
+		set_buffer(&frame_buffer);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, frame_buffer.depth_texture_id, 0);
+			clear(vec3{1.f, 1.f ,1.f});
+			/* slices */ {
+				// glm::mat4 local_transform(1.f);
+				// local_transform = glm::scale(local_transform, glm::vec3(1.7f));
+				// glm::mat4 transform = global_transform * local_transform;
+
+				// glUseProgram(blob_shader);
+				// 	glUniformMatrix4fv(uloc_blob_transform, 1, GL_FALSE, glm::value_ptr(transform));
+
+				// glEnable(GL_DEPTH_TEST); DEFER(glDisable(GL_DEPTH_TEST);)
+				// 	draw(blob_mesh);
+			}
+		set_window_buffer(&main_window);
+
+		clear(vec3{1.f, 1.f ,1.f});
+		/* screen */ {
+			glUseProgram(screen_shader);
+				set_uniform_texture(uloc_tex0_screen, frame_buffer.color_texture_id, 0);
+				set_uniform_texture(uloc_tex1_screen, frame_buffer.depth_texture_id, 1);
+				glUniform2f(uloc_screen_factor_screen, (float)main_window.width / frame_buffer.width, (float)main_window.height / frame_buffer.height);
+
+			glDisable(GL_DEPTH_TEST);
+				draw(quad_mesh);
+		}
+
+		/* particles */ {
+			glm::mat4 local_transform(1.f);
+			local_transform = glm::scale(local_transform, glm::vec3(1.7f));
+			glm::mat4 transform = global_transform * local_transform;
+
+
+			glUseProgram(particle_shader);
+				glUniformMatrix4fv(uloc_transform_particle, 1, GL_FALSE, glm::value_ptr(transform));
+				glActiveTexture(GL_TEXTURE0);
+					glBindTexture(GL_TEXTURE_2D, frame_buffer.depth_texture_id);
+				glUniform1i(uloc_tex_particle, 0);
+				glUniform2f(uloc_size_particle, (float)main_window.width, (float)main_window.height);
+				glUniform1f(uloc_time_particle, new_time);
+
+			// glDepthMask(GL_FALSE); DEFER(glDepthMask(GL_TRUE);)
+			glEnable(GL_DEPTH_TEST); 
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+				draw(particle_cloud);
+		}
 		glfwSwapBuffers(main_window.window);		
 	}
 	return 0;
@@ -254,7 +379,7 @@ int main_1() {
 		u32 uloc_ls_transform = glGetUniformLocation(shader_ls, "u_transform");
 		u32 uloc_ls_time = glGetUniformLocation(shader_ls, "u_time");
 
-	Texture texture = load_texture("res/rect.png");
+	Texture texture = load_texture("res/rect.png", true);
 
 	float prev_time = glfwGetTime();	
 	while(!glfwWindowShouldClose(main_window.window)) {

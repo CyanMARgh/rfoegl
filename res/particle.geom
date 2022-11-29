@@ -4,31 +4,37 @@ layout (triangle_strip, max_vertices = 4) out;
 
 // uniform vec2 u_screen_size;
 
-const vec2 u_screen_size = vec2(800, 600);
-const float particle_size = 30;
+#define WORLD_SCALE
+
+const vec2 u_screen_size = vec2(1200, 800);
+const float particle_size = 150;
 
 in float _freq[];
 
 out vec2 a_uv;
 out float freq;
 
+void add_point(vec4 p0, vec2 dxy, vec4 M) {
+	gl_Position = p0 + vec4(dxy, 0, 0) * M; 
+	a_uv = dxy;
+	EmitVertex();
+}
+
 void main() {
 	vec4 M = vec4(particle_size / u_screen_size, 1., 1.), p0 = gl_in[0].gl_Position;
+#ifdef WORLD_SCALE
+	M.xyz *= 4;
+#else
+	p0.xyz /= p0.w; p0.w = 1;
+#endif
 
 	freq = _freq[0];
 
-	gl_Position = p0 + vec4(-1, -1, 0, 0) * M; 
-	a_uv = vec2(-1, -1);
-	EmitVertex();
-	gl_Position = p0 + vec4( 1, -1, 0, 0) * M; 
-	a_uv = vec2(1, -1);
-	EmitVertex();
-	gl_Position = p0 + vec4(-1,  1, 0, 0) * M; 
-	a_uv = vec2(-1, 1);
-	EmitVertex();
-	gl_Position = p0 + vec4( 1,  1, 0, 0) * M; 
-	a_uv = vec2(1, 1);
-	EmitVertex();
+	add_point(p0, vec2(-1, -1), M);
+	add_point(p0, vec2( 1, -1), M);
+	add_point(p0, vec2(-1,  1), M);
+	add_point(p0, vec2( 1,  1), M);
+
 	EndPrimitive();
 }
 
