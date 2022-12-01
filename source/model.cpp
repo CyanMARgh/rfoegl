@@ -60,6 +60,7 @@ Mesh_N_UV Model::process_mesh(aiMesh *mesh, const aiScene *scene) {
 		}
 	}
 	if(mesh->mNormals) {
+		// printf("here!\n");
 		for(u32 i = 0; i < mesh->mNumVertices; i++) {
 			vertices[i].n1 = { mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z };
 		}
@@ -130,7 +131,7 @@ void Model::load_material_textures(std::vector<Texture>& textures, aiMaterial *m
 		mat->GetTexture(type, i, &str0);
 		Texture texture;
 		std::string str1 = str0.C_Str();
-		texture = load_texture(directory + "/" + str1, type == aiTextureType_DIFFUSE || type == aiTextureType_SPECULAR);
+		texture = load_texture(directory + "/" + str1, type);
 		textures.push_back(texture);
 	}
 }

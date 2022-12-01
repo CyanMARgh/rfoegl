@@ -379,7 +379,7 @@ int main_1() {
 		u32 uloc_ls_transform = glGetUniformLocation(shader_ls, "u_transform");
 		u32 uloc_ls_time = glGetUniformLocation(shader_ls, "u_time");
 
-	Texture texture = load_texture("res/rect.png", true);
+	Texture texture = load_texture("res/rect.png");
 
 	float prev_time = glfwGetTime();	
 	while(!glfwWindowShouldClose(main_window.window)) {

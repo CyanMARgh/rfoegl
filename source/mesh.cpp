@@ -52,26 +52,23 @@ Mesh_N_UV::Mesh_N_UV(Point_N_UV* points, u32 points_count, u32* indices, u32 ind
 	this->points_count = points_count;
 	this->indices_count = indices_count;
 
-	this->textures = std::move(textures);
-
 	glGenVertexArrays(1, &VAO);
 	glGenBuffers(1, &VBO);
-	glGenBuffers(1, &EBO);
-
 	glBindVertexArray(VAO);
-
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, points_count * sizeof(Point_N_UV), points, GL_STATIC_DRAW);
 
+	glGenBuffers(1, &EBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_count * sizeof(u32), indices, GL_STATIC_DRAW);
+
+	glBufferData(GL_ARRAY_BUFFER, points_count * sizeof(Point_N_UV), points, GL_STATIC_DRAW);
+	this->textures = std::move(textures);
 	ADD_ATTRIB(0, Point_N_UV, pos);
 	ADD_ATTRIB(1, Point_N_UV, uv);
-
 	ADD_ATTRIB(2, Point_N_UV, n1);
 	ADD_ATTRIB(3, Point_N_UV, n2);
 	ADD_ATTRIB(4, Point_N_UV, n3);
 
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_count * sizeof(u32), indices, GL_STATIC_DRAW);
 	glBindVertexArray(0);
 }
 Mesh_N_UV::Mesh_N_UV(Mesh_N_UV&& other) {
@@ -150,11 +147,14 @@ void draw(const Mesh_UV& mesh_uv) {
 	glBindVertexArray(0);
 }
 void draw(const Mesh_N_UV& mesh_n_uv, u32 uloc_diff, u32 uloc_spec, u32 uloc_norm) {
-	//TODO return invalid texture
-	if(mesh_n_uv.textures.size() >= 3) {
-		set_uniform(uloc_diff, mesh_n_uv.textures[0], 0);
-		set_uniform(uloc_spec, mesh_n_uv.textures[1], 1);
-		set_uniform(uloc_norm, mesh_n_uv.textures[2], 2);
+	for(const auto& tex : mesh_n_uv.textures) {
+		if(tex.type == aiTextureType_DIFFUSE) {
+			set_uniform(uloc_diff, tex, 0);
+		} else if(tex.type == aiTextureType_SPECULAR) {
+			set_uniform(uloc_spec, tex, 1);
+		} else if(tex.type == aiTextureType_HEIGHT) {
+			set_uniform(uloc_norm, tex, 2); // TODO set default single pixel texture
+		}
 	}
 
 	glBindVertexArray(mesh_n_uv.VAO);

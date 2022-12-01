@@ -13,6 +13,53 @@ struct Point_N_UV {
 	vec3 n3 = {0.f, 0.f, 0.f};
 };
 
+// struct Mesh_Any {
+// 	u32 vbo, vao, ebo, indices_count, points_count;
+// 	bool has_ebo;
+// };
+// void prepare_mesh(Mesh_Any& mesh, u32* indices = nullptr, u32 indices_count = 0, const std::vector<Texture>& textures = {}, decltype(GL_STATIC_DRAW) draw_mode = GL_STATIC_DRAW) {
+// 	mesh.indices_count = indices_count;
+
+// 	glGenVertexArrays(1, &VAO);
+// 	glGenBuffers(1, &VBO);
+// 	glBindVertexArray(VAO);
+// 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+// 	if(!indices) {
+// 		glGenBuffers(1, &EBO);
+// 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+// 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_count * sizeof(u32), indices, draw_mode);
+// 	}
+// 	mesh.has_ebo = !!indices;
+
+// 	mesh.points_count = points_count;
+// 	mesh.textures = textures;
+// }
+// void link_mesh_default(void* points, u32 points_count, decltype(GL_STATIC_DRAW) draw_mode = GL_STATIC_DRAW) {
+// 	glBufferData(GL_ARRAY_BUFFER, points_count * sizeof(Point_N_UV), points, GL_STATIC_DRAW);
+// 	ADD_ATTRIB(0, Point_N_UV, pos);
+// 	ADD_ATTRIB(1, Point_N_UV, uv);
+// 	ADD_ATTRIB(2, Point_N_UV, n1);
+// 	ADD_ATTRIB(3, Point_N_UV, n2);
+// 	ADD_ATTRIB(4, Point_N_UV, n3);
+// }
+
+// void make_mesh(
+// 	std::function<void(void* points, u32 points_count, decltype(GL_STATIC_DRAW) draw_mode)> attr_linker, 
+// 	void* points, u32 points_count,
+// 	u32* indices = nullptr, u32 indices_count = 0, const std::vector<Texture>& textures = {}, decltype(GL_STATIC_DRAW) draw_mode = GL_STATIC_DRAW) {
+	
+// 	Mesh_Any mesh;
+// 	prepare_mesh(mesh, indices, indices_count, textures, draw_mode);
+// 	attr_linker(points, points_count, draw_mode);
+// 	glBindVertexArray(0)
+// }
+// void clear(Mesh_Any mesh) {
+// 	glDeleteVertexArrays(1, &VAO);
+// 	glDeleteBuffers(1, &VBO);
+// 	if(mesh.has_ebo) { glDeleteBuffers(1, &EBO); }
+// }
+
 struct Mesh_UV /*Point_UV*/ {
 	u32 VBO, VAO, EBO, indices_count, points_count;
 	bool active = true;
