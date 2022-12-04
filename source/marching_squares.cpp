@@ -49,7 +49,7 @@ std::vector<Particle> spawn_particles(const Line_Set* line_set, u32 amount, floa
 	}
 	return result;
 }
-std::pair<Mesh_UV, Line_Set> make_layers_mesh(std::function<float(float, float, float)> f, u32 X, u32 Y, u32 Z) {
+std::pair<Mesh_Any, Line_Set> make_layers_mesh(std::function<float(float, float, float)> f, u32 X, u32 Y, u32 Z) {
 	if(Z < 2) { puts("should be at least 2 levels!\n"); exit(-1); }
 	std::vector<Mesh_2D> meshes_2d(Z);
 	std::map<std::pair<u32, u32>, u32> renames;
@@ -87,10 +87,10 @@ std::pair<Mesh_UV, Line_Set> make_layers_mesh(std::function<float(float, float, 
 		float zf = (float)(old_id.first) / (Z - 1);
 		points[new_id] = {{v.x, zf, v.y}, {zf, 0.f}};
 	}
-	Mesh_UV mesh_uv(&(points[0]), V, &(ids[0]), T * 3);
-	return {std::move(mesh_uv), std::move(line_set)};
+	auto mesh_uv = make_mesh(link_mesh_uv, &(points[0]), V, &(ids[0]), T * 3);
+	return {mesh_uv, std::move(line_set)};
 }
-Mesh_UV load_mesh(const Mesh_2D& mesh_2d) {
+Mesh_Any load_mesh(const Mesh_2D& mesh_2d) {
 	std::unordered_map<u32, u32> renames;
 	auto add_id  = [&renames] (u32 id) {
 		auto F = renames.find(id);
@@ -117,7 +117,7 @@ Mesh_UV load_mesh(const Mesh_2D& mesh_2d) {
 		points[new_id] = {{v.x, 0.f, v.y}};
 	}
 
-	return Mesh_UV(&(points[0]), V, &(ids[0]), T * 3);
+	return make_mesh(link_mesh_uv, &(points[0]), V, &(ids[0]), T * 3);
 }
 void Value_Map::fill(std::function<float(float, float)> f, u32 X, u32 Y) {
 	this->X = X, this->Y = Y;

@@ -3,6 +3,7 @@
 #include "mesh.h"
 #include "texture.h"
 #include "utils.h"
+#include "defer.h"
 
 #include <vector>
 #include <set>
@@ -37,7 +38,7 @@ void Model::process_node(aiNode *node, const aiScene *scene) {
 	}
 }
 
-Mesh_N_UV Model::process_mesh(aiMesh *mesh, const aiScene *scene) {
+Mesh_Any Model::process_mesh(aiMesh *mesh, const aiScene *scene) {
 	std::vector<Point_N_UV> vertices(mesh->mNumVertices);
 	std::vector<u32> ids;
 
@@ -121,7 +122,12 @@ Mesh_N_UV Model::process_mesh(aiMesh *mesh, const aiScene *scene) {
 		load_material_textures(textures, mat, aiTextureType_HEIGHT, "texture_normals");
 	}
 	// printf("size = %d\n", vertices.size());
-	return Mesh_N_UV(&(vertices[0]), vertices.size(), &(ids[0]), ids.size(), textures);
+	// return Mesh_N_UV(&(vertices[0]), vertices.size(), &(ids[0]), ids.size(), textures);
+	return make_mesh(
+		link_mesh_default, 
+		&(vertices[0]), vertices.size(),
+		&(ids[0]), ids.size(), textures, GL_STATIC_DRAW
+	);
 }
 
 void Model::load_material_textures(std::vector<Texture>& textures, aiMaterial *mat, aiTextureType type, std::string type_name) {
@@ -137,5 +143,11 @@ void Model::load_material_textures(std::vector<Texture>& textures, aiMaterial *m
 }
 
 void draw(const Model& model, u32 uloc_diff, u32 uloc_spec, u32 uloc_norm) {
-	for(const auto& mesh : model.meshes) { draw(mesh, uloc_diff, uloc_spec, uloc_norm); }
+	for(const auto& mesh : model.meshes) { 
+		draw_default(mesh, uloc_diff, uloc_spec, uloc_norm);
+	}
+}
+
+void clear(Model& model) {
+	clear(model.meshes);
 }

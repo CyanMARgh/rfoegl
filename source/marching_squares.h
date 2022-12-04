@@ -22,7 +22,7 @@ struct Line_Set {
 Line_Set get_border(const Mesh_2D* mesh_2d, float z);
 std::vector<Particle> spawn_particles(const Line_Set* line_set, u32 amount, float spread);
 
-Mesh_UV load_mesh(const Mesh_2D& mesh_2d);
+Mesh_Any load_mesh(const Mesh_2D& mesh_2d);
 struct Value_Map {
 	std::vector<float> values;
 	u32 X, Y;
@@ -33,5 +33,5 @@ struct Value_Map {
 
 Mesh_2D make_mesh_2d(const Value_Map& value_map);
 
-std::pair<Mesh_UV, Line_Set> make_layers_mesh(std::function<float(float, float, float)> f, u32 X = 10, u32 Y = 10, u32 Z = 10);
+std::pair<Mesh_Any, Line_Set> make_layers_mesh(std::function<float(float, float, float)> f, u32 X = 10, u32 Y = 10, u32 Z = 10);
 

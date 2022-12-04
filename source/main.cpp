@@ -178,14 +178,15 @@ std::vector<Strip_Node> generate_random_smooth_cycle(u32 count, u32* result_size
 	return result;
 }
 
-int main() {
+int main_3() {
 	Window main_window(1200, 800);
 	glfwSetKeyCallback(main_window.window, key_callback);
 
 	Camera main_camera;
 	main_camera.translation = glm::translate(main_camera.translation, glm::vec3(0.f, 0.f, 3.f));
 
-	Model teapot("./res/backpack/backpack.obj");
+	Model teapot("./res/backpack/backpack.obj"); AC(teapot);
+
 	// Model teapot("./res/6th_platonic_solid.obj");
 	// Model teapot("./res/cube.obj");
 
@@ -223,7 +224,7 @@ int main() {
 				vec3 eye = get_position(main_camera);
 				glUniform3f(uloc_teapot_view_pos, eye.x, eye.y, eye.z);
 				glUniform1f(uloc_teapot_time, new_time);
-				
+			
 				draw(teapot, uloc_teapot_tex_diff, uloc_teapot_tex_spec, uloc_teapot_tex_norm);
 
 			// glUseProgram(shader_normals);
@@ -254,28 +255,17 @@ int main_2() {
 		{{-1,  1,  0},  {0, 1}},
 	};
 	u32 quad_ids[] = {0, 1, 2, 0, 2, 3};
-	Mesh_UV quad_mesh(quad_points, 4, quad_ids, 6);
-
-	// PerlinNoise generator;
-	// auto [blob_mesh, line_set] = make_layers_mesh([&generator] (float x, float y, float z) { 
-	// 	x = x * 2 - 1, y = y * 2 - 1, z = z * 2 - 1;
-	// 	float r = sqrtf(x * x + y * y) + fabsf(z);
-	// 	float h0 = .9 - r;
-	// 	float dh = generator.noise((x + 5) * 10, (y + 5) * 10, (z + 5) * 10) * .2;
-	// 	return h0 + dh;
-	// }, 60, 60, 12);
+	auto quad_mesh = make_mesh(link_mesh_uv, quad_points, 4, quad_ids, 6);
 
 	const u32 PARTICLES_COUNT = 200;
-	// std::vector<Particle> particles = spawn_particles(&line_set, PARTICLES_COUNT, 0.015);
-	std::vector<Particle> particles(PARTICLES_COUNT); for(u32 i = 0; i < PARTICLES_COUNT; i++) {
+	std::vector<Particle> particles(PARTICLES_COUNT);
+	for(u32 i = 0; i < PARTICLES_COUNT; i++) {
 		vec2 p2 = rand_vec2_unit();
 		particles[i].pos = vec3{p2.x, p2.y, 0.f} + (rand_vec3() * .3f - .15f);
 	}
-	Particle_Cloud particle_cloud(&(particles[0]), PARTICLES_COUNT);
 
-	//shaders
-	// u32 blob_shader = get_shader_program_VF("res/cube.vert", "res/cube.frag");
-	// 	u32 uloc_blob_transform = glGetUniformLocation(blob_shader, "u_transform");
+	Mesh_Any particle_cloud = make_mesh(link_particles, &(particles[0]), PARTICLES_COUNT); AC(particle_cloud);
+
 	u32 screen_shader = get_shader_program_VF("res/screen.vert", "res/screen.frag");
 		u32 uloc_screen_factor_screen = glGetUniformLocation(screen_shader, "u_screen_factor");
 		u32 uloc_tex0_screen = glGetUniformLocation(screen_shader, "u_tex0"); 
@@ -283,9 +273,9 @@ int main_2() {
 	u32 particle_shader = get_shader_program_VGF("res/particle.vert", "res/particle.geom", "res/particle2.frag");
 		u32 uloc_tex_particle = glGetUniformLocation(screen_shader, "u_tex"); 
 		u32 uloc_transform_particle = glGetUniformLocation(particle_shader, "u_transform");	
-		u32 uloc_size_particle = glGetUniformLocation(particle_shader, "u_screen_size");
+		u32 uloc_ssize_particle = glGetUniformLocation(particle_shader, "u_screen_size");
 		u32 uloc_time_particle = glGetUniformLocation(particle_shader, "u_time");
-
+		u32 uloc_psize_particle = glGetUniformLocation(particle_shader, "u_particle_size");
 	float prev_time = glfwGetTime();	
 
 	glEnable(GL_MULTISAMPLE);
@@ -322,7 +312,7 @@ int main_2() {
 				glUniform2f(uloc_screen_factor_screen, (float)main_window.width / frame_buffer.width, (float)main_window.height / frame_buffer.height);
 
 			glDisable(GL_DEPTH_TEST);
-				draw(quad_mesh);
+				draw_uv(quad_mesh);
 		}
 
 		/* particles */ {
@@ -336,21 +326,21 @@ int main_2() {
 				glActiveTexture(GL_TEXTURE0);
 					glBindTexture(GL_TEXTURE_2D, frame_buffer.depth_texture_id);
 				glUniform1i(uloc_tex_particle, 0);
-				glUniform2f(uloc_size_particle, (float)main_window.width, (float)main_window.height);
+				glUniform2f(uloc_ssize_particle, (float)main_window.width, (float)main_window.height);
 				glUniform1f(uloc_time_particle, new_time);
+				glUniform1f(uloc_psize_particle, 150);
 
-			// glDepthMask(GL_FALSE); DEFER(glDepthMask(GL_TRUE);)
 			glEnable(GL_DEPTH_TEST); 
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-				draw(particle_cloud);
+				draw_particles(particle_cloud);
 		}
 		glfwSwapBuffers(main_window.window);		
 	}
 	return 0;
 }
 
-int main_1() {
+int main() {
 	Window main_window(1200, 800);
 	glfwSetKeyCallback(main_window.window, key_callback);
 
@@ -367,7 +357,7 @@ int main_1() {
 		if(i != POINTS_COUNT) total_length += glm::length((points[i + 1].pos - points[i].pos) / zone_size);
 	}	
 
-	Line_Strip line_strip(&(points[0]), POINTS_COUNT + 2);
+	auto line_strip = make_mesh(link_line_strip, &(points[0]), POINTS_COUNT + 2);
 
 	u32 shader_ls = get_shader_program_VGF("res/line_strip.vert", "res/line_strip.geom", "res/line_strip.frag");
 		u32 uloc_ls_zs = glGetUniformLocation(shader_ls, "u_zone_size");
@@ -379,7 +369,7 @@ int main_1() {
 		u32 uloc_ls_transform = glGetUniformLocation(shader_ls, "u_transform");
 		u32 uloc_ls_time = glGetUniformLocation(shader_ls, "u_time");
 
-	Texture texture = load_texture("res/rect.png");
+	Texture texture = load_texture("res/chio_rio.png");
 
 	float prev_time = glfwGetTime();	
 	while(!glfwWindowShouldClose(main_window.window)) {
@@ -402,7 +392,7 @@ int main_1() {
 			glEnable(GL_BLEND);
 			glBlendEquation(GL_MAX);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-				draw(line_strip);
+				draw_line_strip(line_strip);
 		}
 
 		glfwSwapBuffers(main_window.window);		
@@ -459,7 +449,8 @@ int main_0() {
 		cube_ids[i*6+4] = i*4+2; 
 		cube_ids[i*6+5] = i*4+3; 
 	}	
-	Mesh_UV cube_mesh(cube_points, 24, cube_ids, 36);
+
+	auto cube_mesh = make_mesh(link_mesh_uv, cube_points, 24, cube_ids, 36);
 	Point_UV quad_points[] = {
 		{{-1, -1,  0},  {0, 0}},
 		{{ 1, -1,  0},  {1, 0}},
@@ -467,7 +458,7 @@ int main_0() {
 		{{-1,  1,  0},  {0, 1}},
 	};
 	u32 quad_ids[] = {0, 1, 2, 0, 2, 3};
-	Mesh_UV quad_mesh(quad_points, 4, quad_ids, 6);
+	auto quad_mesh = make_mesh(link_mesh_uv, quad_points, 4, quad_ids, 6);
 
 	PerlinNoise generator;
 	auto [blob_mesh, line_set] = make_layers_mesh([&generator] (float x, float y, float z) { 
@@ -477,10 +468,11 @@ int main_0() {
 		float dh = generator.noise((x + 5) * 10, (y + 5) * 10, (z + 5) * 10) * .2;
 		return h0 + dh;
 	}, 60, 60, 12);
+	AC(blob_mesh);
 
-	const u32 PARTICLES_COUNT = 20000;
+	const u32 PARTICLES_COUNT = 2000;
 	std::vector<Particle> particles = spawn_particles(&line_set, PARTICLES_COUNT, 0.015);
-	Particle_Cloud particle_cloud(&(particles[0]), PARTICLES_COUNT);
+	Mesh_Any particle_cloud = make_mesh(link_particles, &(particles[0]), PARTICLES_COUNT); AC(particle_cloud);
 
 	//shaders
 	u32 blob_shader = get_shader_program_VF("res/cube.vert", "res/cube.frag");
@@ -492,8 +484,9 @@ int main_0() {
 	u32 particle_shader = get_shader_program_VGF("res/particle.vert", "res/particle.geom", "res/particle.frag");
 		u32 uloc_tex_particle = glGetUniformLocation(screen_shader, "u_tex"); 
 		u32 uloc_transform_particle = glGetUniformLocation(particle_shader, "u_transform");	
-		u32 uloc_size_particle = glGetUniformLocation(particle_shader, "u_screen_size");
+		u32 uloc_ssize_particle = glGetUniformLocation(particle_shader, "u_screen_size");
 		u32 uloc_time_particle = glGetUniformLocation(particle_shader, "u_time");
+		u32 uloc_psize_particle = glGetUniformLocation(particle_shader, "u_particle_size");
 
 	float prev_time = glfwGetTime();	
 
@@ -519,7 +512,7 @@ int main_0() {
 					glUniformMatrix4fv(uloc_blob_transform, 1, GL_FALSE, glm::value_ptr(transform));
 
 				glEnable(GL_DEPTH_TEST); DEFER(glDisable(GL_DEPTH_TEST);)
-					draw(blob_mesh);
+					draw_uv(blob_mesh);
 			}
 		set_window_buffer(&main_window);
 
@@ -530,7 +523,7 @@ int main_0() {
 				set_uniform_texture(uloc_tex1_screen, frame_buffer.depth_texture_id, 1);
 				glUniform2f(uloc_screen_factor_screen, (float)main_window.width / frame_buffer.width, (float)main_window.height / frame_buffer.height);
 
-			draw(quad_mesh);
+			draw_uv(quad_mesh);
 		}
 
 		/* particles */ {
@@ -544,14 +537,15 @@ int main_0() {
 				glActiveTexture(GL_TEXTURE0);
 					glBindTexture(GL_TEXTURE_2D, frame_buffer.depth_texture_id);
 				glUniform1i(uloc_tex_particle, 0);
-				glUniform2f(uloc_size_particle, (float)main_window.width, (float)main_window.height);
+				glUniform2f(uloc_ssize_particle, (float)main_window.width, (float)main_window.height);
 				glUniform1f(uloc_time_particle, new_time);
+				glUniform1f(uloc_psize_particle, 30);
 
 			glDepthMask(GL_FALSE); DEFER(glDepthMask(GL_TRUE);)
 			glEnable(GL_DEPTH_TEST);
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-				draw(particle_cloud);
+				draw_particles(particle_cloud);
 		}
 		glfwSwapBuffers(main_window.window);		
 	}

@@ -9,5 +9,11 @@
 
 template<typename T>
 void clear(T obj) { }
+template<typename T>
+void clear(std::vector<T>& obj) {
+	for(auto& it : obj) {
+		clear(it);
+	}
+}
 
-#define AC(obj) DEFER(cloar(obj);)
+#define AC(obj) DEFER(clear(obj);)
