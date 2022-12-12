@@ -181,7 +181,6 @@ std::vector<Strip_Node> generate_random_smooth_cycle(u32 count, u32* result_size
 	return result;
 }
 
-//TODO defer/~ glDeleteProgram  & shader class
 int main() {
 	Window main_window(1200, 800);
 	glfwSetKeyCallback(main_window.window, key_callback);

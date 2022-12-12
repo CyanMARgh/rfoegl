@@ -3,7 +3,7 @@
 #include <string>
 #include "utils.h"
 
-//todo find id by name
+//TODO find id by name, use() method
 struct Shader {
 	u32 id;
 };
