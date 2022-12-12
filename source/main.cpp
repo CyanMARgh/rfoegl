@@ -39,7 +39,7 @@ struct Frame_Buffer {
 		width = _width, height = _height;
 		glGenFramebuffersEXT(1, &FBO);
 		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, FBO);
-			//TODO change to parameters
+			//TODO change to parameters (types of textures) or make different framebuffer t
 			//color texture
 			glGenTextures(1, &color_texture_id);
 			glBindTexture(GL_TEXTURE_2D, color_texture_id);
@@ -74,6 +74,9 @@ struct Frame_Buffer {
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);  	
 	}
 	~Frame_Buffer() {
+		glDeleteTextures(1, &depth_texture_id);
+		glDeleteTextures(1, &color_texture_id);
+		glDeleteRenderbuffers(1, &RBO);
 		glDeleteFramebuffers(1, &FBO);
 	}
 };
@@ -178,29 +181,30 @@ std::vector<Strip_Node> generate_random_smooth_cycle(u32 count, u32* result_size
 	return result;
 }
 
-int main_3() {
+//TODO defer/~ glDeleteProgram  & shader class
+int main() {
 	Window main_window(1200, 800);
 	glfwSetKeyCallback(main_window.window, key_callback);
 
 	Camera main_camera;
 	main_camera.translation = glm::translate(main_camera.translation, glm::vec3(0.f, 0.f, 3.f));
 
+	// Model teapot("./res/cat/scene.gltf"); AC(teapot);
 	Model teapot("./res/backpack/backpack.obj"); AC(teapot);
-
 	// Model teapot("./res/6th_platonic_solid.obj");
 	// Model teapot("./res/cube.obj");
 
-	u32 shader_default = get_shader_program_VF("res/default.vert", "res/default.frag");
-		u32 uloc_teapot_trworld = glGetUniformLocation(shader_default, "u_trworld");
-		u32 uloc_teapot_trscreen = glGetUniformLocation(shader_default, "u_trscreen");
-		u32 uloc_teapot_view_pos = glGetUniformLocation(shader_default, "u_view_pos");
-		u32 uloc_teapot_tex_diff = glGetUniformLocation(shader_default, "u_tex_diff");
-		u32 uloc_teapot_tex_spec = glGetUniformLocation(shader_default, "u_tex_spec");
-		u32 uloc_teapot_tex_norm = glGetUniformLocation(shader_default, "u_tex_norm");
-		u32 uloc_teapot_time = glGetUniformLocation(shader_default, "u_time");
-	u32 shader_normals = get_shader_program_VGF("res/default.vert", "res/normals.geom", "res/lamp.frag");
-		u32 uloc_normals_trworld = glGetUniformLocation(shader_normals, "u_trworld");
-		u32 uloc_normals_trscreen = glGetUniformLocation(shader_normals, "u_trscreen");
+	Shader shader_default = get_shader_program_VF("res/default.vert", "res/default.frag"); AC(shader_default)
+		u32 uloc_teapot_trworld = glGetUniformLocation(shader_default.id, "u_trworld");
+		u32 uloc_teapot_trscreen = glGetUniformLocation(shader_default.id, "u_trscreen");
+		u32 uloc_teapot_view_pos = glGetUniformLocation(shader_default.id, "u_view_pos");
+		u32 uloc_teapot_tex_diff = glGetUniformLocation(shader_default.id, "u_tex_diff");
+		u32 uloc_teapot_tex_spec = glGetUniformLocation(shader_default.id, "u_tex_spec");
+		u32 uloc_teapot_tex_norm = glGetUniformLocation(shader_default.id, "u_tex_norm");
+		u32 uloc_teapot_time = glGetUniformLocation(shader_default.id, "u_time");
+	Shader shader_normals = get_shader_program_VGF("res/default.vert", "res/normals.geom", "res/lamp.frag"); AC(shader_normals)
+		u32 uloc_normals_trworld = glGetUniformLocation(shader_normals.id, "u_trworld");
+		u32 uloc_normals_trscreen = glGetUniformLocation(shader_normals.id, "u_trscreen");
 
 	float prev_time = glfwGetTime();	
 	
@@ -214,16 +218,22 @@ int main_3() {
 		glm::mat4 screen_transform = get_transform(&main_camera, &main_window);
 
 		glfwPollEvents();
-		clear();
+		clear(vec3(1.f, 1.f, 1.f));
 		{
 			glm::mat4 world_transform(1.f);
+			// world_transform = glm::scale(world_transform, vec3(.1f, .1f, .1f));
+			// world_transform = glm::translate(world_transform, vec3(0.f, -8.f, -4.f));
+			// world_transform = glm::rotate(world_transform, new_time * 2.f, vec3(0.f, 1.f, 0.f));
 
-			glUseProgram(shader_default);
+			glUseProgram(shader_default.id);
 				glUniformMatrix4fv(uloc_teapot_trworld, 1, GL_FALSE, (GLfloat*)&world_transform);
 				glUniformMatrix4fv(uloc_teapot_trscreen, 1, GL_FALSE, (GLfloat*)&screen_transform);
 				vec3 eye = get_position(main_camera);
 				glUniform3f(uloc_teapot_view_pos, eye.x, eye.y, eye.z);
 				glUniform1f(uloc_teapot_time, new_time);
+
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			
 				draw(teapot, uloc_teapot_tex_diff, uloc_teapot_tex_spec, uloc_teapot_tex_norm);
 
@@ -266,16 +276,16 @@ int main_2() {
 
 	Mesh_Any particle_cloud = make_mesh(link_particles, &(particles[0]), PARTICLES_COUNT); AC(particle_cloud);
 
-	u32 screen_shader = get_shader_program_VF("res/screen.vert", "res/screen.frag");
-		u32 uloc_screen_factor_screen = glGetUniformLocation(screen_shader, "u_screen_factor");
-		u32 uloc_tex0_screen = glGetUniformLocation(screen_shader, "u_tex0"); 
-		u32 uloc_tex1_screen = glGetUniformLocation(screen_shader, "u_tex1"); 
-	u32 particle_shader = get_shader_program_VGF("res/particle.vert", "res/particle.geom", "res/particle2.frag");
-		u32 uloc_tex_particle = glGetUniformLocation(screen_shader, "u_tex"); 
-		u32 uloc_transform_particle = glGetUniformLocation(particle_shader, "u_transform");	
-		u32 uloc_ssize_particle = glGetUniformLocation(particle_shader, "u_screen_size");
-		u32 uloc_time_particle = glGetUniformLocation(particle_shader, "u_time");
-		u32 uloc_psize_particle = glGetUniformLocation(particle_shader, "u_particle_size");
+	Shader screen_shader = get_shader_program_VF("res/screen.vert", "res/screen.frag"); AC(screen_shader)
+		u32 uloc_screen_factor_screen = glGetUniformLocation(screen_shader.id, "u_screen_factor");
+		u32 uloc_tex0_screen = glGetUniformLocation(screen_shader.id, "u_tex0"); 
+		u32 uloc_tex1_screen = glGetUniformLocation(screen_shader.id, "u_tex1"); 
+	Shader particle_shader = get_shader_program_VGF("res/particle.vert", "res/particle.geom", "res/particle2.frag"); AC(particle_shader)
+		u32 uloc_tex_particle = glGetUniformLocation(screen_shader.id, "u_tex"); 
+		u32 uloc_transform_particle = glGetUniformLocation(particle_shader.id, "u_transform");	
+		u32 uloc_ssize_particle = glGetUniformLocation(particle_shader.id, "u_screen_size");
+		u32 uloc_time_particle = glGetUniformLocation(particle_shader.id, "u_time");
+		u32 uloc_psize_particle = glGetUniformLocation(particle_shader.id, "u_particle_size");
 	float prev_time = glfwGetTime();	
 
 	glEnable(GL_MULTISAMPLE);
@@ -306,7 +316,7 @@ int main_2() {
 
 		clear(vec3{1.f, 1.f ,1.f});
 		/* screen */ {
-			glUseProgram(screen_shader);
+			glUseProgram(screen_shader.id);
 				set_uniform_texture(uloc_tex0_screen, frame_buffer.color_texture_id, 0);
 				set_uniform_texture(uloc_tex1_screen, frame_buffer.depth_texture_id, 1);
 				glUniform2f(uloc_screen_factor_screen, (float)main_window.width / frame_buffer.width, (float)main_window.height / frame_buffer.height);
@@ -321,7 +331,7 @@ int main_2() {
 			glm::mat4 transform = global_transform * local_transform;
 
 
-			glUseProgram(particle_shader);
+			glUseProgram(particle_shader.id);
 				glUniformMatrix4fv(uloc_transform_particle, 1, GL_FALSE, glm::value_ptr(transform));
 				glActiveTexture(GL_TEXTURE0);
 					glBindTexture(GL_TEXTURE_2D, frame_buffer.depth_texture_id);
@@ -340,7 +350,7 @@ int main_2() {
 	return 0;
 }
 
-int main() {
+int main_1() {
 	Window main_window(1200, 800);
 	glfwSetKeyCallback(main_window.window, key_callback);
 
@@ -359,15 +369,15 @@ int main() {
 
 	auto line_strip = make_mesh(link_line_strip, &(points[0]), POINTS_COUNT + 2);
 
-	u32 shader_ls = get_shader_program_VGF("res/line_strip.vert", "res/line_strip.geom", "res/line_strip.frag");
-		u32 uloc_ls_zs = glGetUniformLocation(shader_ls, "u_zone_size");
-		u32 uloc_ls_pc = glGetUniformLocation(shader_ls, "u_point_count");
-		u32 uloc_ls_length = glGetUniformLocation(shader_ls, "u_length");
-		u32 uloc_ls_tex = glGetUniformLocation(shader_ls, "u_texture");
-		u32 uloc_ls_ts = glGetUniformLocation(shader_ls, "u_tex_size");
-		u32 uloc_ls_rad = glGetUniformLocation(shader_ls, "u_r");
-		u32 uloc_ls_transform = glGetUniformLocation(shader_ls, "u_transform");
-		u32 uloc_ls_time = glGetUniformLocation(shader_ls, "u_time");
+	Shader shader_ls = get_shader_program_VGF("res/line_strip.vert", "res/line_strip.geom", "res/line_strip.frag"); AC(shader_ls)
+		u32 uloc_ls_zs = glGetUniformLocation(shader_ls.id, "u_zone_size");
+		u32 uloc_ls_pc = glGetUniformLocation(shader_ls.id, "u_point_count");
+		u32 uloc_ls_length = glGetUniformLocation(shader_ls.id, "u_length");
+		u32 uloc_ls_tex = glGetUniformLocation(shader_ls.id, "u_texture");
+		u32 uloc_ls_ts = glGetUniformLocation(shader_ls.id, "u_tex_size");
+		u32 uloc_ls_rad = glGetUniformLocation(shader_ls.id, "u_r");
+		u32 uloc_ls_transform = glGetUniformLocation(shader_ls.id, "u_transform");
+		u32 uloc_ls_time = glGetUniformLocation(shader_ls.id, "u_time");
 
 	Texture texture = load_texture("res/chio_rio.png");
 
@@ -379,12 +389,12 @@ int main() {
 		clear();
 
 		{
-			glUseProgram(shader_ls);
+			glUseProgram(shader_ls.id);
 				glUniform3f(uloc_ls_zs, zone_size.x, zone_size.y, zone_size.z);
 				glUniform1i(uloc_ls_pc, POINTS_COUNT + 1);
 				glUniform1f(uloc_ls_length, total_length);
 				set_uniform(uloc_ls_tex, texture);
-				glUniform2f(uloc_ls_ts, (float)texture.width, (float)texture.height);
+				glUniform2f(uloc_ls_ts, (float)texture.info.width, (float)texture.info.height);
 				glUniform1f(uloc_ls_rad, .15f);
 				glUniformMatrix4fv(uloc_ls_transform, 1, GL_FALSE, glm::value_ptr(get_transform(&main_camera, &main_window)));
 				glUniform1f(uloc_ls_time, new_time);
@@ -470,23 +480,23 @@ int main_0() {
 	}, 60, 60, 12);
 	AC(blob_mesh);
 
-	const u32 PARTICLES_COUNT = 2000;
+	const u32 PARTICLES_COUNT = 5000;
 	std::vector<Particle> particles = spawn_particles(&line_set, PARTICLES_COUNT, 0.015);
 	Mesh_Any particle_cloud = make_mesh(link_particles, &(particles[0]), PARTICLES_COUNT); AC(particle_cloud);
 
 	//shaders
-	u32 blob_shader = get_shader_program_VF("res/cube.vert", "res/cube.frag");
-		u32 uloc_blob_transform = glGetUniformLocation(blob_shader, "u_transform");
-	u32 screen_shader = get_shader_program_VF("res/screen.vert", "res/screen.frag");
-		u32 uloc_screen_factor_screen = glGetUniformLocation(screen_shader, "u_screen_factor");
-		u32 uloc_tex0_screen = glGetUniformLocation(screen_shader, "u_tex0"); 
-		u32 uloc_tex1_screen = glGetUniformLocation(screen_shader, "u_tex1"); 
-	u32 particle_shader = get_shader_program_VGF("res/particle.vert", "res/particle.geom", "res/particle.frag");
-		u32 uloc_tex_particle = glGetUniformLocation(screen_shader, "u_tex"); 
-		u32 uloc_transform_particle = glGetUniformLocation(particle_shader, "u_transform");	
-		u32 uloc_ssize_particle = glGetUniformLocation(particle_shader, "u_screen_size");
-		u32 uloc_time_particle = glGetUniformLocation(particle_shader, "u_time");
-		u32 uloc_psize_particle = glGetUniformLocation(particle_shader, "u_particle_size");
+	Shader blob_shader = get_shader_program_VF("res/cube.vert", "res/cube.frag"); AC(blob_shader)
+		u32 uloc_blob_transform = glGetUniformLocation(blob_shader.id, "u_transform");
+	Shader screen_shader = get_shader_program_VF("res/screen.vert", "res/screen.frag"); AC(screen_shader)
+		u32 uloc_screen_factor_screen = glGetUniformLocation(screen_shader.id, "u_screen_factor");
+		u32 uloc_tex0_screen = glGetUniformLocation(screen_shader.id, "u_tex0"); 
+		u32 uloc_tex1_screen = glGetUniformLocation(screen_shader.id, "u_tex1");
+	Shader particle_shader = get_shader_program_VGF("res/particle.vert", "res/particle.geom", "res/particle.frag"); AC(particle_shader)
+		u32 uloc_tex_particle = glGetUniformLocation(screen_shader.id, "u_tex"); 
+		u32 uloc_transform_particle = glGetUniformLocation(particle_shader.id, "u_transform");	
+		u32 uloc_ssize_particle = glGetUniformLocation(particle_shader.id, "u_screen_size");
+		u32 uloc_time_particle = glGetUniformLocation(particle_shader.id, "u_time");
+		u32 uloc_psize_particle = glGetUniformLocation(particle_shader.id, "u_particle_size");
 
 	float prev_time = glfwGetTime();	
 
@@ -508,7 +518,7 @@ int main_0() {
 				local_transform = glm::scale(local_transform, glm::vec3(1.7f));
 				glm::mat4 transform = global_transform * local_transform;
 
-				glUseProgram(blob_shader);
+				glUseProgram(blob_shader.id);
 					glUniformMatrix4fv(uloc_blob_transform, 1, GL_FALSE, glm::value_ptr(transform));
 
 				glEnable(GL_DEPTH_TEST); DEFER(glDisable(GL_DEPTH_TEST);)
@@ -518,7 +528,7 @@ int main_0() {
 
 		clear();
 		/* screen */ {
-			glUseProgram(screen_shader);
+			glUseProgram(screen_shader.id);
 				set_uniform_texture(uloc_tex0_screen, frame_buffer.color_texture_id, 0);
 				set_uniform_texture(uloc_tex1_screen, frame_buffer.depth_texture_id, 1);
 				glUniform2f(uloc_screen_factor_screen, (float)main_window.width / frame_buffer.width, (float)main_window.height / frame_buffer.height);
@@ -532,14 +542,14 @@ int main_0() {
 			glm::mat4 transform = global_transform * local_transform;
 
 
-			glUseProgram(particle_shader);
+			glUseProgram(particle_shader.id);
 				glUniformMatrix4fv(uloc_transform_particle, 1, GL_FALSE, glm::value_ptr(transform));
 				glActiveTexture(GL_TEXTURE0);
 					glBindTexture(GL_TEXTURE_2D, frame_buffer.depth_texture_id);
 				glUniform1i(uloc_tex_particle, 0);
 				glUniform2f(uloc_ssize_particle, (float)main_window.width, (float)main_window.height);
 				glUniform1f(uloc_time_particle, new_time);
-				glUniform1f(uloc_psize_particle, 30);
+				glUniform1f(uloc_psize_particle, 20);
 
 			glDepthMask(GL_FALSE); DEFER(glDepthMask(GL_TRUE);)
 			glEnable(GL_DEPTH_TEST);

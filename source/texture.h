@@ -8,11 +8,16 @@
 
 #include "utils.h"
 
-struct Texture {
-	u32 id;
+struct Texture_Info {
+	u32 id, owners;
 	int width, height;
 	aiTextureType type;
+};
+struct Texture {
+	Texture_Info info;
+	std::string path;
 };
 Texture load_texture(const std::string& path, aiTextureType type = aiTextureType_DIFFUSE);
 void set_uniform_texture(u32 location, u32 texture_id, u32 delta = 0);
 void set_uniform(u32 location , Texture texture, u32 delta = 0);
+void clear(Texture texture);

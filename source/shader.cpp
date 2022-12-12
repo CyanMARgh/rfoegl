@@ -33,7 +33,7 @@ u32 get_shader(const std::string& path, decltype(GL_VERTEX_SHADER) type) {
 	printf("shader compiled succesfully (path: %s)\n", path.c_str());
 	return shader;
 }
-u32 get_shader_program_VF(const std::string& path_vert, const std::string& path_frag) {
+Shader get_shader_program_VF(const std::string& path_vert, const std::string& path_frag) {
 	u32 vertex_shader = get_shader(path_vert, GL_VERTEX_SHADER);
 	u32 fragment_shader = get_shader(path_frag, GL_FRAGMENT_SHADER);
 	u32 shader_program = glCreateProgram();
@@ -43,9 +43,9 @@ u32 get_shader_program_VF(const std::string& path_vert, const std::string& path_
 	glDeleteShader(vertex_shader);
 	glDeleteShader(fragment_shader);
 	puts("shader linked succesfully");
-	return shader_program;
+	return {shader_program};
 }
-u32 get_shader_program_VGF(const std::string& path_vert, const std::string& path_geom,  const std::string& path_frag) {
+Shader get_shader_program_VGF(const std::string& path_vert, const std::string& path_geom,  const std::string& path_frag) {
 	u32 vertex_shader = get_shader(path_vert, GL_VERTEX_SHADER);
 	u32 geometry_shader = get_shader(path_geom, GL_GEOMETRY_SHADER);
 	u32 fragment_shader = get_shader(path_frag, GL_FRAGMENT_SHADER);
@@ -58,5 +58,8 @@ u32 get_shader_program_VGF(const std::string& path_vert, const std::string& path
 	glDeleteShader(geometry_shader);
 	glDeleteShader(fragment_shader);
 	puts("shader linked succesfully");
-	return shader_program;
+	return {shader_program};
+}
+void clear(Shader shader) {
+	glDeleteProgram(shader.id);
 }

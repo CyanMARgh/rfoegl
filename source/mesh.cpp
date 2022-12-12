@@ -1,6 +1,7 @@
 #include <cstdio>
 
 #include "mesh.h"
+#include "defer.h"
 
 #define ADD_ATTRIB(id, struct_name, field_name)\
 glVertexAttribPointer(id, sizeof(std::declval<struct_name>().field_name) / sizeof(float), GL_FLOAT, GL_FALSE, sizeof(struct_name), (void*)offsetof(struct_name, field_name));\
@@ -29,7 +30,7 @@ Mesh_Any make_mesh(
 	u32* indices, u32 indices_count,
 	const std::vector<Texture>& textures, decltype(GL_STATIC_DRAW) draw_mode) {
 
-	printf("+ mesh\n");
+	// printf("+ mesh\n");
 	
 	Mesh_Any mesh;
 	prepare_mesh(mesh, indices, indices_count, points_count, textures, draw_mode);
@@ -39,10 +40,11 @@ Mesh_Any make_mesh(
 	return mesh;
 }
 void clear(Mesh_Any& mesh) {
-	printf("- mesh\n");
+	// printf("- mesh\n");
 	glDeleteVertexArrays(1, &(mesh.vao));
 	glDeleteBuffers(1, &(mesh.vbo));
 	if(mesh.has_ebo) { glDeleteBuffers(1, &(mesh.ebo)); }
+	clear(mesh.textures);
 }
 
 
@@ -74,11 +76,11 @@ void link_line_strip(void* points, u32 points_count, decltype(GL_STATIC_DRAW) dr
 
 void draw_default(const Mesh_Any& mesh, u32 uloc_diff, u32 uloc_spec, u32 uloc_norm) {
 	for(const auto& tex : mesh.textures) {
-		if(tex.type == aiTextureType_DIFFUSE) {
+		if(tex.info.type == aiTextureType_DIFFUSE) {
 			set_uniform(uloc_diff, tex, 0);
-		} else if(tex.type == aiTextureType_SPECULAR) {
+		} else if(tex.info.type == aiTextureType_SPECULAR) {
 			set_uniform(uloc_spec, tex, 1);
-		} else if(tex.type == aiTextureType_HEIGHT) {
+		} else if(tex.info.type == aiTextureType_HEIGHT) {
 			set_uniform(uloc_norm, tex, 2); // TODO set default single pixel texture
 		}
 	}
