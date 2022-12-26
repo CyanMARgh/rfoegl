@@ -33,6 +33,15 @@ u32 get_shader(const std::string& path, decltype(GL_VERTEX_SHADER) type) {
 	printf("shader compiled succesfully (path: %s)\n", path.c_str());
 	return shader;
 }
+Shader get_shader_program_C(const std::string& path_comp) {
+	u32 compute_shader = get_shader(path_comp, GL_COMPUTE_SHADER);
+	u32 shader_program = glCreateProgram();
+	glAttachShader(shader_program, compute_shader);
+	glLinkProgram(shader_program);
+	glDeleteShader(compute_shader);
+	puts("shader linked succesfully");
+	return {shader_program};
+}
 Shader get_shader_program_VF(const std::string& path_vert, const std::string& path_frag) {
 	u32 vertex_shader = get_shader(path_vert, GL_VERTEX_SHADER);
 	u32 fragment_shader = get_shader(path_frag, GL_FRAGMENT_SHADER);

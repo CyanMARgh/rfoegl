@@ -1,0 +1,57 @@
+#version 430 core
+layout(local_size_x = 8, local_size_y = 4, local_size_z = 1) in;
+layout(rgba32f, binding = 0) uniform image2D states;
+
+uniform float u_time;
+uniform float u_dtime;
+
+vec4 get(ivec2 pixel_coords) {
+	return imageLoad(states, pixel_coords);
+}
+void set(ivec2 pixel_coords, vec4 state) {
+	imageStore(states, pixel_coords, state);
+}
+
+const int NC = 4;
+struct Model_Params {
+	float C, R, d, w;
+	vec2 nodes[NC];
+};
+const Model_Params model_params = Model_Params(.2, .2, .1, 30, vec2[](vec2(.5, 0), vec2(0, .5), vec2(-.5, 0), vec2(0, -.5)));
+
+vec2 rotate(vec2 p, float t) {
+	float c = cos(t), s = sin(t);
+	return vec2(p.x * c - p.y * s, p.x * s + p.y * c);
+}
+
+vec4 get_derivative(vec4 p, float t) {
+	vec2 pos = p.xy, vel = p.zw;
+	vec2 force = -(model_params.C * pos + model_params.R * vel);
+	float dd = model_params.d * model_params.d;
+	for(int i = 0; i < NC; i++) {
+		vec2 dp = model_params.nodes[i] - rotate(pos, t * model_params.w);
+		force += dp / pow(dot(dp, dp) + dd, 1.5);
+	}
+	return vec4(vel.xy, force.xy);
+}
+vec4 iterate(vec4 s, float t, float h) {
+	vec4 K1 = get_derivative(s, t);
+	return s + K1 * h;
+}
+
+// void iterate(const Model_Params* model_params, Model* model, float delta_time) {
+// 	vec4 X = {model->pos.x, model->pos.y, model->speed.x, model->speed.y};
+// 	vec4 k1 = get_derivative(model_params, X);
+// 	vec4 k2 = get_derivative(model_params, X + k1 * delta_time / 2.f);
+// 	vec4 k3 = get_derivative(model_params, X + k2 * delta_time / 2.f);
+// 	vec4 k4 = get_derivative(model_params, X + k3 * delta_time);
+// 	vec4 X_ = X + (delta_time / 6.f) * (k1 + 2.f * k2 + 2.f * k3 + k4);
+
+// 	model->pos = {X_.x, X_.y};
+// 	model->speed = {X_.z, X_.w};
+// }
+
+void main() {
+	ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);
+	set(pixel_coords, iterate(get(pixel_coords), u_time / 3000, u_dtime / 3000));
+}
