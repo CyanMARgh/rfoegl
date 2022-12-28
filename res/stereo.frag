@@ -2,13 +2,14 @@
 
 layout (binding = 0) uniform sampler2D u_tex;
 layout (binding = 1) uniform sampler2D u_depth;
+uniform float u_time;
 
 in vec2 uv;
 out vec4 o_color;
 
 float fPixelRepeat = 200.0;
 float N = 6;
-float M = 480;
+float M = 550;
 float q = 1.5;
 
 float z_near = .1, z_far  = 100;
@@ -20,8 +21,8 @@ float linearize_depth(float depth)  {
 float GetDepth(vec2 uv) {
 	float d1 = texture(u_depth, uv).r;
 	float d2 = linearize_depth(d1);
-	return 10 - (d2 > 10 ? 10 : d2);
-
+	float d3 = 10 - (d2 > 10 ? 10 : d2);
+	return pow(d3, 1.6);
 
 	// vec2 uvf = uv * 2.0 - 1.0;
 	// uvf.x *= q;

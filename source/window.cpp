@@ -30,3 +30,22 @@ Window::Window(u32 _width, u32 _height) {
 Window::~Window() {
 	glfwTerminate();
 }
+
+
+void clear(vec3 rgb) {
+	glClearColor(rgb.r, rgb.g, rgb.b, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
+bool pressed_keys[1024] = {false};
+void default_key_callback(GLFWwindow* window, int key, int scancode, int action, int mode) {
+	if(action == GLFW_PRESS) {
+		pressed_keys[key] = true;
+	} else if(action == GLFW_RELEASE) {
+		pressed_keys[key] = false;
+		if(key == GLFW_KEY_ESCAPE) glfwSetWindowShouldClose(window, GL_TRUE);
+	}
+}
+void set_default_key_callback(Window* w) {
+	glfwSetKeyCallback(w->window, default_key_callback);
+}

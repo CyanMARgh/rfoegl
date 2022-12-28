@@ -11,7 +11,7 @@ struct __defer_t {
 		foo();
 	}
 };
-#define DEFER(FOO) __defer_t UNIQUE(_defer){[&](){FOO}};
+#define DEFER(FOO) __defer_t UNIQUE(_defer){[&](){FOO;}};
 
 template<typename T>
 void clear(T obj) { }
