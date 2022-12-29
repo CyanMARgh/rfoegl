@@ -27,7 +27,7 @@ struct Point_Light {
 	vec3 amb, diff, spec;
 };
 
-float shininess = 8;
+float shininess = 1;
 const float pl_rad = 20;
 
 vec2 flip(vec2 uv) {
@@ -38,10 +38,11 @@ vec3 calc_light(Dir_Light light, vec3 norm, vec3 view_dir) {
 	vec3 light_dir = normalize(-light.dir);
 	float diff_c = max(dot(norm, light_dir), 0);
 	vec3 reflect_dir = reflect(-light_dir, norm);
-	float spec_c = pow(max(dot(view_dir, reflect_dir), 0), shininess);
+	// float spec_c = pow(max(dot(view_dir, reflect_dir), 0), shininess);
+	float spec_c = max(dot(view_dir, reflect_dir), 0);
 
-	vec3 amb = light.amb * texture(u_tex_diff, uv).xyz;
-	vec3 diff = light.diff * diff_c * texture(u_tex_diff, uv).xyz;
+	vec3 amb = vec3(0);//light.amb * texture(u_tex_diff, uv).xyz;
+	vec3 diff = vec3(0);//light.diff * diff_c * texture(u_tex_diff, uv).xyz;
 	vec3 spec = light.spec * spec_c * texture(u_tex_spec, uv).xyz;
 
 	return amb + diff + spec;

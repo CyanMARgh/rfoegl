@@ -18,10 +18,17 @@ vec3 twilight_shifted(float t) {
 	const vec3 c6 = vec3(-92.697067, -52.312119, -123.143476);
 	return c0 + t * (c1 + t * (c2 + t * (c3 + t * (c4 + t * (c5 + t * c6)))));
 }
-vec3 twilight_shifted_2(vec2 p) {
-	return twilight_shifted(atan(p.x, p.y) / (PI * 2) + .5);
+vec3 pal(in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d) {
+    return a + b*cos( 6.28318*(c*t+d) );
+}
+
+
+vec3 palette(vec2 p) {
+	float t = atan(p.x, p.y) / (PI * 2) + .5;
+	// return twilight_shifted(t);
+	return pal(t, vec3(.5, .5, .5), vec3(.5, .5, .5), vec3(1., 1., 1.), vec3(0., .1, .2));
 }
 
 void main() {
-	o_color = vec4(twilight_shifted_2(texture(u_screen, uv).xy), 0);
+	o_color = vec4(palette(texture(u_screen, uv).xy), 0);
 }
