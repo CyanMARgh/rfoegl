@@ -7,7 +7,7 @@ def find_files(whitelist, blacklist, path):
 	dirs, files = walker[1], walker[2]
 	ans = 0
 	for f in files:
-		if(f.split('.')[-1] in whitelist):
+		if(f.split('.')[-1] in whitelist and f[0] != '.'):
 			print(f)
 			F = open(path + f, 'r', encoding="utf8", errors='ignore')
 			for line in F:
