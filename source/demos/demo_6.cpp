@@ -33,7 +33,7 @@ void demo_6() {
 		0, 3, 2
 	};
 
-	auto quad_mesh = make_mesh(link_mesh_uv, quad_points, 4, quad_ids, 6);
+	auto quad_mesh = make_mesh<Point_UV>(Mesh_Raw{(float*)quad_points, quad_ids, 4, 6});
 
 	//shaders
 	Shader screen_shader = get_shader_program_VF("res/screen2.vert", "res/pendulum/display.frag"); AC(screen_shader)

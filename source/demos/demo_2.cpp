@@ -26,7 +26,7 @@ void demo_2() {
 		{{-1,  1,  0},  {0, 1}},
 	};
 	u32 quad_ids[] = {0, 1, 2, 0, 2, 3};
-	auto quad_mesh = make_mesh(link_mesh_uv, quad_points, 4, quad_ids, 6);
+	auto quad_mesh = make_mesh<Point_UV>(Mesh_Raw{(float*)quad_points, quad_ids, 4, 6});
 
 	const u32 PARTICLES_COUNT = 200;
 	std::vector<Particle> particles(PARTICLES_COUNT);
@@ -35,7 +35,7 @@ void demo_2() {
 		particles[i].pos = vec3{p2.x, p2.y, 0.f} + (rand_vec3() * .3f - .15f);
 	}
 
-	Mesh_Any particle_cloud = make_mesh(link_particles, &(particles[0]), PARTICLES_COUNT); AC(particle_cloud);
+	Mesh_Any particle_cloud = make_mesh<Particle>(make_mesh_raw(particles, {}));  //AC(particle_cloud);
 
 	Shader screen_shader = get_shader_program_VF("res/screen.vert", "res/screen.frag"); AC(screen_shader)
 		u32 uloc_screen_factor_screen = glGetUniformLocation(screen_shader.id, "u_screen_factor");

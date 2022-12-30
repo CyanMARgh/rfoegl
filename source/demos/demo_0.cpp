@@ -27,7 +27,7 @@ void demo_0() {
 		{{-1,  1,  0},  {0, 1}},
 	};
 	u32 quad_ids[] = {0, 1, 2, 0, 2, 3};
-	auto quad_mesh = make_mesh(link_mesh_uv, quad_points, 4, quad_ids, 6);
+	auto quad_mesh = make_mesh<Point_UV>(Mesh_Raw{(float*)quad_points, quad_ids, 4, 6});
 
 	PerlinNoise generator;
 	auto [blob_mesh, line_set] = make_layers_mesh([&generator] (float x, float y, float z) { 
@@ -37,11 +37,10 @@ void demo_0() {
 		float dh = generator.noise((x + 5) * 10, (y + 5) * 10, (z + 5) * 10) * .2;
 		return h0 + dh;
 	}, 60, 60, 12);
-	AC(blob_mesh);
 
 	const u32 PARTICLES_COUNT = 5000;
 	std::vector<Particle> particles = spawn_particles(&line_set, PARTICLES_COUNT, 0.015);
-	Mesh_Any particle_cloud = make_mesh(link_particles, &(particles[0]), PARTICLES_COUNT); AC(particle_cloud);
+	Mesh_Any particle_cloud = make_mesh<Particle>(make_mesh_raw(particles, {}));
 
 	//shaders
 	Shader blob_shader = get_shader_program_VF("res/cube.vert", "res/cube.frag"); AC(blob_shader)
@@ -81,7 +80,7 @@ void demo_0() {
 					glUniformMatrix4fv(uloc_blob_transform, 1, GL_FALSE, glm::value_ptr(transform));
 
 				glEnable(GL_DEPTH_TEST); DEFER(glDisable(GL_DEPTH_TEST);)
-					draw_uv(blob_mesh);
+					blob_mesh.draw();
 			}
 		set_window_buffer(&main_window);
 
@@ -92,7 +91,8 @@ void demo_0() {
 				set_uniform_texture(uloc_tex1_screen, frame_buffer.depth_texture_id, 1);
 				glUniform2f(uloc_screen_factor_screen, (float)main_window.width / frame_buffer.width, (float)main_window.height / frame_buffer.height);
 
-			draw_uv(quad_mesh);
+			// draw_uv(quad_mesh);
+			quad_mesh.draw();
 		}
 
 		/* particles */ {

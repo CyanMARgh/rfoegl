@@ -87,8 +87,9 @@ std::pair<Mesh_Any, Line_Set> make_layers_mesh(std::function<float(float, float,
 		float zf = (float)(old_id.first) / (Z - 1);
 		points[new_id] = {{v.x, zf, v.y}, {zf, 0.f}};
 	}
-	auto mesh_uv = make_mesh(link_mesh_uv, &(points[0]), V, &(ids[0]), T * 3);
-	return {mesh_uv, std::move(line_set)};
+
+	auto mesh_uv = make_mesh<Point_UV>(make_mesh_raw(points, ids));
+	return {std::move(mesh_uv), std::move(line_set)};
 }
 Mesh_Any load_mesh(const Mesh_2D& mesh_2d) {
 	std::unordered_map<u32, u32> renames;
@@ -117,7 +118,7 @@ Mesh_Any load_mesh(const Mesh_2D& mesh_2d) {
 		points[new_id] = {{v.x, 0.f, v.y}};
 	}
 
-	return make_mesh(link_mesh_uv, &(points[0]), V, &(ids[0]), T * 3);
+	return make_mesh<Point_UV>(make_mesh_raw(points, ids));
 }
 void Value_Map::fill(std::function<float(float, float)> f, u32 X, u32 Y) {
 	this->X = X, this->Y = Y;

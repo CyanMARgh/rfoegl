@@ -27,7 +27,7 @@ void demo_7() {
 	};
 	u32 quad_ids[] = {0, 2, 1, 0, 3, 2};
 
-	auto quad_mesh = make_mesh(link_mesh_uv, quad_points, 4, quad_ids, 6);
+	auto quad_mesh = make_mesh<Point_UV>(Mesh_Raw{(float*)quad_points, quad_ids, 4, 6});
 
 	Model model("./res/6th_platonic_solid.obj"); AC(model);
 	// Model model("./res/cat/scene.gltf"); AC(model);

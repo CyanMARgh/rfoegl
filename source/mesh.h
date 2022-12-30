@@ -22,34 +22,89 @@ struct Strip_Node {
 	float t = -1.f;
 };
 
-struct Mesh_Any {
-	u32 vbo, vao, ebo, indices_count, points_count;
-	std::vector<Texture> textures;
-	bool has_ebo;
+struct Mesh_Raw {
+	const float *points;
+	const u32 *indices;
+	u32 points_count, indices_count;
 };
-void prepare_mesh(Mesh_Any& mesh, u32* indices, u32 indices_count, u32 points_count, const std::vector<Texture>& textures, decltype(GL_STATIC_DRAW) draw_mode);
+template<typename T>
+Mesh_Raw make_mesh_raw(const std::vector<T>& points, const std::vector<u32>& indices) {
+	return Mesh_Raw{(const float*)&(points[0]), &(indices[0]), (u32)points.size(), (u32)indices.size()};
+}
 
-Mesh_Any make_mesh(
-	std::function<void(void* points, u32 points_count, decltype(GL_STATIC_DRAW) draw_mode)> attr_linker,
-	void* points, u32 points_count,
-	u32* indices = nullptr, u32 indices_count = 0,
-	const std::vector<Texture>& textures = {}, decltype(GL_STATIC_DRAW) draw_mode = GL_STATIC_DRAW);
+struct Mesh_Any {
+	std::function<void(Mesh_Raw, decltype(GL_STATIC_DRAW))> attr_linker; // TODO remove
+	std::function<void(const Mesh_Any&)> painter;
+	std::vector<Texture> textures;
+	u32 vbo, vao, ebo, points_count, indices_count;
+	bool is_owner, has_ebo;
 
-void clear(Mesh_Any& mesh);
+	// TODO                                                                      u32
+	void prepare(Mesh_Raw mesh_raw, const std::vector<Texture>& textures, decltype(GL_STATIC_DRAW) draw_mode);
 
+	Mesh_Any(
+		std::function<void(Mesh_Raw, decltype(GL_STATIC_DRAW))> _attr_linker,
+		std::function<void(const Mesh_Any&)> _painter,
+		Mesh_Raw mesh_raw,
+		const std::vector<Texture>& textures, decltype(GL_STATIC_DRAW) draw_mode
+	);
 
-void link_mesh_default(void* points, u32 points_count, decltype(GL_STATIC_DRAW) draw_mode);
-void link_particles(void* points, u32 points_count, decltype(GL_STATIC_DRAW) draw_mode);
-void link_mesh_uv(void* points, u32 points_count, decltype(GL_STATIC_DRAW) draw_mode);
-void link_line_strip(void* points, u32 points_count, decltype(GL_STATIC_DRAW) draw_mode);
+	Mesh_Any(const Mesh_Any&) = delete;
+	Mesh_Any& operator=(const Mesh_Any&) = delete;
 
-void draw_default(const Mesh_Any& mesh, u32 uloc_diff, u32 uloc_spec, u32 uloc_norm);
+	void move(Mesh_Any& other);
+	Mesh_Any(Mesh_Any&& other);
+	Mesh_Any& operator=(Mesh_Any&& other);
+
+	void clear();
+	~Mesh_Any();
+
+	void draw();
+};
+
+void link_mesh_default(Mesh_Raw mesh_raw, decltype(GL_STATIC_DRAW) draw_mode);
+void link_particles(Mesh_Raw mesh_raw, decltype(GL_STATIC_DRAW) draw_mode);
+void link_mesh_uv(Mesh_Raw mesh_raw, decltype(GL_STATIC_DRAW) draw_mode);
+void link_line_strip(Mesh_Raw mesh_raw, decltype(GL_STATIC_DRAW) draw_mode);
+
+void draw_default(const Mesh_Any& mesh);
 void draw_uv(const Mesh_Any& mesh);
 void draw_particles(const Mesh_Any& cloud);
 void draw_line_strip(const Mesh_Any& strip);
 
+template<typename T>
+struct Mesh_Gen {
+	static Mesh_Any make_mesh(Mesh_Raw mesh_raw, const std::vector<Texture>& textures, decltype(GL_STATIC_DRAW) draw_mode) {
+		printf("unknown vertex type!\n");
+		exit(-1);
+	}
+};
+template<>
+struct Mesh_Gen<Point_N_UV> {
+	static Mesh_Any make_mesh(Mesh_Raw mesh_raw, const std::vector<Texture>& textures, decltype(GL_STATIC_DRAW) draw_mode) {
+		return Mesh_Any(link_mesh_default, draw_default, mesh_raw, textures, draw_mode);
+	}
+};
+template<>
+struct Mesh_Gen<Point_UV> {
+	static Mesh_Any make_mesh(Mesh_Raw mesh_raw, const std::vector<Texture>& textures, decltype(GL_STATIC_DRAW) draw_mode) {
+		return Mesh_Any(link_mesh_uv, draw_uv, mesh_raw, textures, draw_mode);
+	}
+};
+template<>
+struct Mesh_Gen<Particle> {
+	static Mesh_Any make_mesh(Mesh_Raw mesh_raw, const std::vector<Texture>& textures, decltype(GL_STATIC_DRAW) draw_mode) {
+		return Mesh_Any(link_particles, draw_particles, mesh_raw, textures, draw_mode);
+	}
+};
+template<>
+struct Mesh_Gen<Strip_Node> {
+	static Mesh_Any make_mesh(Mesh_Raw mesh_raw, const std::vector<Texture>& textures, decltype(GL_STATIC_DRAW) draw_mode) {
+		return Mesh_Any(link_line_strip, draw_line_strip, mesh_raw, textures, draw_mode);
+	}
+};
 
-
-
-
-
+template<typename T>
+Mesh_Any make_mesh(Mesh_Raw mesh_raw, const std::vector<Texture>& textures = {}, decltype(GL_STATIC_DRAW) draw_mode = GL_STATIC_DRAW) {
+	return Mesh_Gen<T>::make_mesh(mesh_raw, textures, draw_mode);
+}

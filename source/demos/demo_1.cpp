@@ -110,7 +110,7 @@ void demo_1() {
 		if(i != POINTS_COUNT) total_length += glm::length((points[i + 1].pos - points[i].pos) / zone_size);
 	}	
 
-	auto line_strip = make_mesh(link_line_strip, &(points[0]), POINTS_COUNT + 2);
+	auto line_strip = make_mesh<Strip_Node>(make_mesh_raw(points, {}));
 
 	Shader shader_ls = get_shader_program_VGF("res/line_strip.vert", "res/line_strip.geom", "res/line_strip.frag"); AC(shader_ls)
 		u32 uloc_ls_zs = glGetUniformLocation(shader_ls.id, "u_zone_size");

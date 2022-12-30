@@ -123,11 +123,7 @@ Mesh_Any Model::process_mesh(aiMesh *mesh, const aiScene *scene) {
 	}
 	// printf("size = %d\n", vertices.size());
 	// return Mesh_N_UV(&(vertices[0]), vertices.size(), &(ids[0]), ids.size(), textures);
-	return make_mesh(
-		link_mesh_default, 
-		&(vertices[0]), vertices.size(),
-		&(ids[0]), ids.size(), textures, GL_STATIC_DRAW
-	);
+	return make_mesh<Point_N_UV>(make_mesh_raw(vertices, ids), textures, GL_STATIC_DRAW);
 }
 
 void Model::load_material_textures(std::vector<Texture>& textures, aiMaterial *mat, aiTextureType type, std::string type_name) {
@@ -144,7 +140,16 @@ void Model::load_material_textures(std::vector<Texture>& textures, aiMaterial *m
 
 void draw(const Model& model, u32 uloc_diff, u32 uloc_spec, u32 uloc_norm) {
 	for(const auto& mesh : model.meshes) { 
-		draw_default(mesh, uloc_diff, uloc_spec, uloc_norm);
+		for(const auto& tex : mesh.textures) {
+			if(tex.info.type == aiTextureType_DIFFUSE) {
+				set_uniform(uloc_diff, tex, 0);
+			} else if(tex.info.type == aiTextureType_SPECULAR) {
+				set_uniform(uloc_spec, tex, 1);
+			} else if(tex.info.type == aiTextureType_HEIGHT) {
+				set_uniform(uloc_norm, tex, 2); // TODO set default single pixel texture
+			}
+		}
+		draw_default(mesh);
 	}
 }
 

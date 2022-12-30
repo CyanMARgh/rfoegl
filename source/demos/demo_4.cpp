@@ -64,7 +64,9 @@ void demo_4() {
 	glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
 
 
-	auto cube_mesh = make_mesh(link_mesh_uv, cube_points, 24, cube_ids, 36);
+	// auto cube_mesh = make_mesh(link_mesh_uv, cube_points, 24, cube_ids, 36);
+	auto cube_mesh = make_mesh<Point_UV>(Mesh_Raw{(float*)cube_points, cube_ids, 24, 36});
+
 	Point_UV quad_points[] = {
 		{{-1, -1,  0},  {0, 0}},
 		{{ 1, -1,  0},  {1, 0}},
@@ -72,7 +74,7 @@ void demo_4() {
 		{{-1,  1,  0},  {0, 1}},
 	};
 	u32 quad_ids[] = {0, 1, 2, 0, 2, 3};
-	auto quad_mesh = make_mesh(link_mesh_uv, quad_points, 4, quad_ids, 6);
+	auto quad_mesh = make_mesh<Point_UV>(Mesh_Raw{(float*)quad_points, quad_ids, 4, 6});
 
 	//shaders
 	Shader cube_shader = get_shader_program_VF("res/lamp.vert", "res/lamp.frag"); AC(cube_shader)

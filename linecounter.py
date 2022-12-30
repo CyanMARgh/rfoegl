@@ -18,5 +18,5 @@ def find_files(whitelist, blacklist, path):
 			ans += find_files(whitelist, blacklist, fullpath)
 	return ans
 
-result = find_files({'FLAGS', 'h', 'c', 'cpp', 'frag', 'vert', 'comp', 'geom'}, {'build', 'tmp', '.git'}, "./")
+result = find_files({'FLAGS', 'h', 'c', 'cpp', 'frag', 'vert', 'comp', 'geom', 'py', 'md'}, {'build', 'tmp', '.git'}, "./")
 print("result = " + str(result))

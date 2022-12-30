@@ -26,7 +26,7 @@ void demo_5() {
 	};
 	u32 quad_ids[] = {0, 2, 1, 0, 3, 2};
 
-	auto quad_mesh = make_mesh(link_mesh_uv, quad_points, 4, quad_ids, 6);
+	auto quad_mesh = make_mesh<Point_UV>(Mesh_Raw{(float*)quad_points, quad_ids, 4, 6});
 
 	Shader screen_shader = get_shader_program_VF("res/screen2.vert", "res/screen2.frag"); AC(screen_shader)
 		u32 uloc_tex_screen = glGetUniformLocation(screen_shader.id, "u_screen"); 

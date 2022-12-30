@@ -14,12 +14,12 @@ struct __defer_t {
 #define DEFER(FOO) __defer_t UNIQUE(_defer){[&](){FOO;}};
 
 template<typename T>
-void clear(T obj) { }
-template<typename T>
 void clear(std::vector<T>& obj) {
 	for(auto& it : obj) {
-		clear(it);
+		clear(std::ref(it));
 	}
 }
+template<typename T>
+void clear(T obj) { }
 
 #define AC(obj) DEFER(clear(obj);)
