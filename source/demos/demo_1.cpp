@@ -112,15 +112,7 @@ void demo_1() {
 
 	auto line_strip = make_mesh<Strip_Node>(make_mesh_raw(points, {}));
 
-	Shader shader_ls = get_shader_program_VGF("res/line_strip.vert", "res/line_strip.geom", "res/line_strip.frag"); AC(shader_ls)
-		u32 uloc_ls_zs = glGetUniformLocation(shader_ls.id, "u_zone_size");
-		u32 uloc_ls_pc = glGetUniformLocation(shader_ls.id, "u_point_count");
-		u32 uloc_ls_length = glGetUniformLocation(shader_ls.id, "u_length");
-		u32 uloc_ls_tex = glGetUniformLocation(shader_ls.id, "u_texture");
-		u32 uloc_ls_ts = glGetUniformLocation(shader_ls.id, "u_tex_size");
-		u32 uloc_ls_rad = glGetUniformLocation(shader_ls.id, "u_r");
-		u32 uloc_ls_transform = glGetUniformLocation(shader_ls.id, "u_transform");
-		u32 uloc_ls_time = glGetUniformLocation(shader_ls.id, "u_time");
+	Shader shader_ls(Shader::VGF, {"res/line_strip.vert", "res/line_strip.geom", "res/line_strip.frag"});
 
 	Texture texture = load_texture("res/chio_rio.png"); AC(texture)
 
@@ -132,20 +124,20 @@ void demo_1() {
 		clear();
 
 		{
-			glUseProgram(shader_ls.id);
-				glUniform3f(uloc_ls_zs, zone_size.x, zone_size.y, zone_size.z);
-				glUniform1i(uloc_ls_pc, POINTS_COUNT + 1);
-				glUniform1f(uloc_ls_length, total_length);
-				set_uniform(uloc_ls_tex, texture);
-				glUniform2f(uloc_ls_ts, (float)texture.info.width, (float)texture.info.height);
-				glUniform1f(uloc_ls_rad, .15f);
-				glUniformMatrix4fv(uloc_ls_transform, 1, GL_FALSE, glm::value_ptr(get_transform(&main_camera, &main_window)));
-				glUniform1f(uloc_ls_time, new_time);
+			shader_ls.use();
+				shader_ls.set("u_zone_size", zone_size);
+				shader_ls.set("u_point_count", POINTS_COUNT + 1);
+				shader_ls.set("u_length", total_length);
+				shader_ls.set("u_texture", texture);
+				shader_ls.set("u_tex_size", vec2{(float)texture.info.width, (float)texture.info.height});
+				shader_ls.set("u_r", .15f);
+				shader_ls.set("u_transform", get_transform(&main_camera, &main_window));
+				shader_ls.set("u_time", new_time);
 
 			glEnable(GL_BLEND);
 			glBlendEquation(GL_MAX);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-				draw_line_strip(line_strip);
+				line_strip.draw();
 		}
 
 		glfwSwapBuffers(main_window.window);		

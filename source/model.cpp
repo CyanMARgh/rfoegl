@@ -154,5 +154,6 @@ void draw(const Model& model, u32 uloc_diff, u32 uloc_spec, u32 uloc_norm) {
 }
 
 void clear(Model& model) {
+	printf("clear model\n");
 	clear(model.meshes);
 }

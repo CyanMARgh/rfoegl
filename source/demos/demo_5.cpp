@@ -1,7 +1,7 @@
 #include "demo_5.h"
 
 #include "window.h"
-#include "mesh.h"
+#include "primitives.h"
 #include "shader.h"
 #include "defer.h"
 
@@ -18,20 +18,10 @@ void demo_5() {
 	glTextureStorage2D(screen_tex, 1, GL_RGBA32F, 1200, 800);
 	glBindImageTexture(0, screen_tex, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
 
-	float quad_points[] = {
-		-1.f, -1.f, 0.f, 0.f, 0.f,
-		-1.f,  1.f, 0.f, 0.f, 1.f,
-		 1.f,  1.f, 0.f, 1.f, 1.f,
-		 1.f, -1.f, 0.f, 1.f, 0.f,
-	};
-	u32 quad_ids[] = {0, 2, 1, 0, 3, 2};
+	auto& quad_mesh = get_primitive(Primitive::QUAD);
 
-	auto quad_mesh = make_mesh<Point_UV>(Mesh_Raw{(float*)quad_points, quad_ids, 4, 6});
-
-	Shader screen_shader = get_shader_program_VF("res/screen2.vert", "res/screen2.frag"); AC(screen_shader)
-		u32 uloc_tex_screen = glGetUniformLocation(screen_shader.id, "u_screen"); 
-	Shader compute_shader = get_shader_program_C("res/compute.comp"); AC(compute_shader);
-		u32 uloc_time_comp = glGetUniformLocation(compute_shader.id, "u_time");
+	Shader screen_shader(Shader::VF, {"res/screen2.vert", "res/screen2.frag"});
+	Shader compute_shader(Shader::C, {"res/compute.comp"});
 
 	float prev_time = glfwGetTime();	
 
@@ -41,15 +31,14 @@ void demo_5() {
 
 		clear();
 
-		glUseProgram(compute_shader.id);
-			glUniform1f(uloc_time_comp, new_time);
-			glDispatchCompute(1200 / 8, 800 / 4, 1);
-			glMemoryBarrier(GL_ALL_BARRIER_BITS);
+		compute_shader.use();
+			compute_shader.set("u_time", new_time);			
+		glDispatchCompute(1200 / 8, 800 / 4, 1);
+		glMemoryBarrier(GL_ALL_BARRIER_BITS);
 
-		glUseProgram(screen_shader.id);
-			set_uniform_texture(uloc_tex_screen, screen_tex);
-
-		draw_uv(quad_mesh);
+		screen_shader.use();
+			screen_shader.set_texture("u_screen", screen_tex);
+		quad_mesh.draw();
 
 		glfwSwapBuffers(main_window.window);
 	}

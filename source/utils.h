@@ -12,6 +12,7 @@ typedef uint64_t u64;
 using glm::vec2;
 using glm::vec3;
 using glm::vec4;
+using glm::mat4;
 
 float randf();
 vec2 rand_vec2();

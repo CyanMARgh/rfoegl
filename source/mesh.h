@@ -42,6 +42,7 @@ struct Mesh_Any {
 	// TODO                                                                      u32
 	void prepare(Mesh_Raw mesh_raw, const std::vector<Texture>& textures, decltype(GL_STATIC_DRAW) draw_mode);
 
+	Mesh_Any();
 	Mesh_Any(
 		std::function<void(Mesh_Raw, decltype(GL_STATIC_DRAW))> _attr_linker,
 		std::function<void(const Mesh_Any&)> _painter,

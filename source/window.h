@@ -5,6 +5,7 @@
 #include <GLFW/glfw3.h>
 
 #include "utils.h"
+#include <functional>
 
 struct Window {
 	GLFWwindow* window;
@@ -18,4 +19,4 @@ struct Window {
 void clear(vec3 rgb = {0.f, 0.f, 0.f});
 extern bool pressed_keys[];
 void default_key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
-void set_default_key_callback(Window* w);
+void set_default_key_callback(Window* w, std::function<void(int)> click_request = nullptr);

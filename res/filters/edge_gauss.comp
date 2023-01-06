@@ -1,0 +1,98 @@
+#version 430 core
+layout(local_size_x = 8, local_size_y = 4, local_size_z = 1) in;
+
+#ifndef DIM
+#define DIM 1
+#endif
+
+#if DIM == 1
+	#define T float
+	#define Q r32f
+#elif DIM == 2
+	#define T vec2
+	#define Q rg32f
+#elif DIM == 4
+	#define T vec4
+	#define Q rgba32f
+#endif
+
+layout(rg32f, binding = 0) uniform image2D dir_tex;
+layout(Q, binding = 1) uniform image2D in_tex;
+layout(Q, binding = 2) uniform image2D out_tex;
+
+uniform float u_sigma_high, u_sigma_low, u_tau;
+
+ivec2 dims;
+T get_at(ivec2 coord) {
+	coord.x = coord.x < 0 ? 0 : coord.x >= dims.x ? dims.x - 1 : coord.x;
+	coord.y = coord.y < 0 ? 0 : coord.y >= dims.y ? dims.y - 1 : coord.y;
+	return T(imageLoad(in_tex, coord));
+}
+T get_at(vec2 p) {
+	return get_at(ivec2(floor(p)));
+}
+
+const float PI = 3.14159265;
+
+vec2 move(vec2 p, float h) {
+	ivec2 pi = ivec2(floor(p));
+	pi.x = pi.x < 0 ? 0 : pi.x >= dims.x ? dims.x - 1 : pi.x;
+	pi.y = pi.y < 0 ? 0 : pi.y >= dims.y ? dims.y - 1 : pi.y;
+
+	vec4 dir4 = imageLoad(dir_tex, pi);
+	vec2 dir = normalize(dir4.xy);
+	return p + dir * h;
+}
+
+T gauss(ivec2 p0, float sigma) {
+	const float h = .3;
+	int R = int(3.1 * sigma / h);
+
+	vec2 p0f = vec2(p0), p = p0f;
+
+	float c_sum = 1;
+	T col_sum = get_at(p);
+
+	for(int i = 1; i <= R; i++) {
+		p = move(p, h);
+		float l = float(i) * h;
+		float x = l / sigma;
+		float coeff = exp(-x * x / 2);
+		col_sum += get_at(p) * coeff;
+		c_sum += coeff;
+	}
+
+	p = p0f;
+	for(int i = 1; i <= R; i++) {
+		p = move(p, -h);
+		float l = float(i) * h;
+		float x = l / sigma;
+		float coeff = exp(-x * x / 2);
+		col_sum += get_at(p) * coeff;
+		c_sum += coeff;
+	}
+
+	return col_sum / c_sum;
+	// return col / (sqrt(PI * 2) * sigma);
+}
+T dog(ivec2 p0) {
+	T res = gauss(p0, u_sigma_high) * (1 + u_tau) - gauss(p0, u_sigma_low) * u_tau;
+	// return smoothstep(0, 1, res);
+	return step(.5, res);
+}
+
+void main() {
+	dims = imageSize(out_tex);
+	ivec2 p0 = ivec2(gl_GlobalInvocationID.xy);
+	T g = dog(p0);
+	vec4
+#if DIM == 1
+		 res = vec4(g, 0, 0, 0);
+#elif DIM == 2
+		 res = vec4(g, 0, 0);
+#elif DIM == 4
+		 res = g;
+#endif
+
+	imageStore(out_tex, p0, res);
+}

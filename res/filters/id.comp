@@ -1,0 +1,28 @@
+#version 430 core
+layout(local_size_x = 8, local_size_y = 4, local_size_z = 1) in;
+layout(rgba32f, binding = 1) uniform image2D out_tex;
+
+ivec2 dims;
+#ifdef SAMPLER
+layout(binding = 0) uniform sampler2D in_tex;
+vec3 get_at(ivec2 coord) {
+	vec2 uv = (vec2(coord)) / vec2(dims);
+	return texture(in_tex, uv).xyz;
+}
+#else
+layout(rgba32f, binding = 0) uniform image2D in_tex;
+vec3 get_at(ivec2 coord) {
+	coord.x = coord.x < 0 ? 0 : coord.x >= dims.x ? dims.x - 1 : coord.x;
+	coord.y = coord.y < 0 ? 0 : coord.y >= dims.y ? dims.y - 1 : coord.y;
+	return imageLoad(in_tex, coord).xyz;
+}
+#endif
+
+const float PI = 3.14159265;
+
+void main() {
+	dims = imageSize(out_tex);
+	ivec2 p0 = ivec2(gl_GlobalInvocationID.xy);
+
+	imageStore(out_tex, p0, vec4(1 - get_at(p0), 1));
+}

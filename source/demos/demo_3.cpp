@@ -18,17 +18,11 @@ void demo_3() {
 
 	Model teapot("./res/backpack/backpack.obj"); AC(teapot);
 
-	Shader shader_default = get_shader_program_VF("res/default.vert", "res/default.frag"); AC(shader_default)
-		u32 uloc_teapot_trworld = glGetUniformLocation(shader_default.id, "u_trworld");
-		u32 uloc_teapot_trscreen = glGetUniformLocation(shader_default.id, "u_trscreen");
-		u32 uloc_teapot_view_pos = glGetUniformLocation(shader_default.id, "u_view_pos");
-		u32 uloc_teapot_tex_diff = glGetUniformLocation(shader_default.id, "u_tex_diff");
+	Shader shader_default(Shader::VF, {"res/default.vert", "res/default.frag"});
+		u32 uloc_teapot_tex_diff = glGetUniformLocation(shader_default.id, "u_tex_diff"); //TODO ???
 		u32 uloc_teapot_tex_spec = glGetUniformLocation(shader_default.id, "u_tex_spec");
 		u32 uloc_teapot_tex_norm = glGetUniformLocation(shader_default.id, "u_tex_norm");
-		u32 uloc_teapot_time = glGetUniformLocation(shader_default.id, "u_time");
-	Shader shader_normals = get_shader_program_VGF("res/default.vert", "res/normals.geom", "res/lamp.frag"); AC(shader_normals)
-		u32 uloc_normals_trworld = glGetUniformLocation(shader_normals.id, "u_trworld");
-		u32 uloc_normals_trscreen = glGetUniformLocation(shader_normals.id, "u_trscreen");
+	Shader shader_normal(Shader::VGF, {"res/default.vert", "res/normals.geom", "res/lamp.frag"});
 
 	float prev_time = glfwGetTime();	
 	
@@ -49,12 +43,11 @@ void demo_3() {
 			// world_transform = glm::translate(world_transform, vec3(0.f, -8.f, -4.f));
 			// world_transform = glm::rotate(world_transform, new_time * 2.f, vec3(0.f, 1.f, 0.f));
 
-			glUseProgram(shader_default.id);
-				glUniformMatrix4fv(uloc_teapot_trworld, 1, GL_FALSE, (GLfloat*)&world_transform);
-				glUniformMatrix4fv(uloc_teapot_trscreen, 1, GL_FALSE, (GLfloat*)&screen_transform);
-				vec3 eye = get_position(main_camera);
-				glUniform3f(uloc_teapot_view_pos, eye.x, eye.y, eye.z);
-				glUniform1f(uloc_teapot_time, new_time);
+			shader_default.use();
+				shader_default.set("u_trworld", world_transform);
+				shader_default.set("u_trscreen", screen_transform);
+				shader_default.set("u_view_pos", get_position(main_camera));
+				shader_default.set("u_time", new_time);
 
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

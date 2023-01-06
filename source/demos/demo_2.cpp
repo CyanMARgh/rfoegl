@@ -3,12 +3,12 @@
 
 #include "utils.h"
 #include <vector>
-#include "mesh.h"
 #include "camera.h"
 #include "defer.h"
 #include "shader.h"
 #include <glm/gtc/type_ptr.hpp>
 #include "framebuffer.h"
+#include "primitives.h"
 
 
 void demo_2() {
@@ -18,15 +18,8 @@ void demo_2() {
 	main_camera.translation = glm::translate(main_camera.translation, glm::vec3(0.f, 0.f, 3.f));
 
 	set_default_key_callback(&main_window);
-
-	Point_UV quad_points[] = {
-		{{-1, -1,  0},  {0, 0}},
-		{{ 1, -1,  0},  {1, 0}},
-		{{ 1,  1,  0},  {1, 1}},
-		{{-1,  1,  0},  {0, 1}},
-	};
-	u32 quad_ids[] = {0, 1, 2, 0, 2, 3};
-	auto quad_mesh = make_mesh<Point_UV>(Mesh_Raw{(float*)quad_points, quad_ids, 4, 6});
+	
+	auto& quad_mesh = get_primitive(Primitive::QUAD);
 
 	const u32 PARTICLES_COUNT = 200;
 	std::vector<Particle> particles(PARTICLES_COUNT);
@@ -35,18 +28,13 @@ void demo_2() {
 		particles[i].pos = vec3{p2.x, p2.y, 0.f} + (rand_vec3() * .3f - .15f);
 	}
 
-	Mesh_Any particle_cloud = make_mesh<Particle>(make_mesh_raw(particles, {}));  //AC(particle_cloud);
+	Mesh_Any particle_cloud = make_mesh<Particle>(make_mesh_raw(particles, {}));
 
-	Shader screen_shader = get_shader_program_VF("res/screen.vert", "res/screen.frag"); AC(screen_shader)
+	Shader screen_shader(Shader::VF, {"res/screen.vert", "res/screen.frag"});
 		u32 uloc_screen_factor_screen = glGetUniformLocation(screen_shader.id, "u_screen_factor");
 		u32 uloc_tex0_screen = glGetUniformLocation(screen_shader.id, "u_tex0"); 
 		u32 uloc_tex1_screen = glGetUniformLocation(screen_shader.id, "u_tex1"); 
-	Shader particle_shader = get_shader_program_VGF("res/particle.vert", "res/particle.geom", "res/particle2.frag"); AC(particle_shader)
-		u32 uloc_tex_particle = glGetUniformLocation(screen_shader.id, "u_tex"); 
-		u32 uloc_transform_particle = glGetUniformLocation(particle_shader.id, "u_transform");	
-		u32 uloc_ssize_particle = glGetUniformLocation(particle_shader.id, "u_screen_size");
-		u32 uloc_time_particle = glGetUniformLocation(particle_shader.id, "u_time");
-		u32 uloc_psize_particle = glGetUniformLocation(particle_shader.id, "u_particle_size");
+	Shader particle_shader(Shader::VGF, {"res/particle.vert", "res/particle.geom", "res/particle2.frag", "SCREEN_SCALE"});
 	float prev_time = glfwGetTime();	
 
 	glEnable(GL_MULTISAMPLE);
@@ -66,16 +54,15 @@ void demo_2() {
 			local_transform = glm::scale(local_transform, glm::vec3(1.7f));
 			glm::mat4 transform = global_transform * local_transform;
 
-			glUseProgram(particle_shader.id);
-				glUniformMatrix4fv(uloc_transform_particle, 1, GL_FALSE, glm::value_ptr(transform));
-				glUniform2f(uloc_ssize_particle, (float)main_window.width, (float)main_window.height);
-				glUniform1f(uloc_time_particle, new_time);
-				glUniform1f(uloc_psize_particle, 150);
-
+			particle_shader.use();
+				particle_shader.set("u_transform", transform);
+				particle_shader.set("u_screen_size", vec2{main_window.width, main_window.height});
+				particle_shader.set("u_time", new_time);
+				particle_shader.set("u_particle_size", 150);
 			glEnable(GL_DEPTH_TEST); 
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-				draw_particles(particle_cloud);
+				particle_cloud.draw();
 		}
 		glfwSwapBuffers(main_window.window);		
 	}

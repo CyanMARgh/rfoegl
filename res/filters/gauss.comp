@@ -1,0 +1,63 @@
+#version 430 core
+layout(local_size_x = 8, local_size_y = 4, local_size_z = 1) in;
+
+#ifndef DIM
+#define DIM 1
+#endif
+
+#if DIM == 1
+	#define T float
+	#define Q r32f
+#elif DIM == 2
+	#define T vec2
+	#define Q rg32f
+#elif DIM == 4
+	#define T vec4
+	#define Q rgba32f
+#endif
+
+layout(Q, binding = 0) uniform image2D in_tex;
+layout(Q, binding = 1) uniform image2D out_tex;
+
+uniform float u_sigma;
+
+ivec2 dims;
+T get_at(ivec2 coord) {
+	coord.x = coord.x < 0 ? 0 : coord.x >= dims.x ? dims.x - 1 : coord.x;
+	coord.y = coord.y < 0 ? 0 : coord.y >= dims.y ? dims.y - 1 : coord.y;
+	return T(imageLoad(in_tex, coord));
+}
+
+const float PI = 3.14159265;
+
+T gauss(ivec2 p0) {
+	int R = int(3.1 * u_sigma);
+	T col = T(0);
+
+	for(int i = -R; i <= R; i++) {
+		float coeff = exp(-float(i * i) / (2 * u_sigma * u_sigma));
+		col += get_at(p0 + 
+#ifdef VERTICAL
+			ivec2(0, i)
+#else
+			ivec2(i, 0)
+#endif
+		) * coeff;
+	}
+	return col / (sqrt(PI * 2) * u_sigma);
+}
+
+void main() {
+	dims = imageSize(out_tex);
+	ivec2 p0 = ivec2(gl_GlobalInvocationID.xy);
+
+#if DIM == 1
+	vec4 g = vec4(gauss(p0), 0, 0, 0);
+#elif DIM == 2
+	vec4 g = vec4(gauss(p0), 0, 0);
+#elif DIM == 4
+	vec4 g = gauss(p0);
+#endif
+
+	imageStore(out_tex, p0, g);
+}

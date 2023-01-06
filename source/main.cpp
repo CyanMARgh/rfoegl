@@ -6,12 +6,13 @@
 #include "demo_5.h" // compute shader eample
 #include "demo_6.h" // pendulum generator
 #include "demo_7.h" // autostereogram
+#include "demo_8.h" // WIP
 
-
+#include <cstdio>
 //fixes:
-//TODO shader class + compute shader
-	//TODO find shader field id by name
-	//TODO #define support on shader compilaton
+//TODO(!!!!!) clear static storages on window restart
+
+//shader fix
 	//TODO bool flip_uv somewhere (or little programm to flip textures)
 
 //TODO framebuffer fix maybe (set_render_target) + imagebuffer class
@@ -40,14 +41,23 @@
 
 
 int main(int argc, char * argv []) {
-	demo_0();
-	demo_1();
-	demo_2();
-	demo_3();
-	demo_4();
-	demo_5();
-	demo_6();
-	demo_7();
+	// demo_0();
+	// demo_0();
+	// demo_1();
+	// demo_1();
+	// demo_2();
+	// demo_2();
+	// demo_3();
+	// demo_3();
+	// demo_4();
+	// demo_4();
+	// demo_5();
+	// demo_5();
+	// demo_6();
+	// demo_6();
+	// demo_7();
+	// demo_7();
+	demo_8();
     return 0;
 }
 

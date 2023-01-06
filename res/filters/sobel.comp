@@ -1,0 +1,32 @@
+#version 430 core
+layout(local_size_x = 8, local_size_y = 4, local_size_z = 1) in;
+
+layout(r32f, binding = 0) uniform image2D in_tex;
+layout(rg32f, binding = 1) uniform image2D out_tex;
+
+uniform vec4 u_sigma;
+
+ivec2 dims;
+float get_at(ivec2 coord) {
+	coord.x = coord.x < 0 ? 0 : coord.x >= dims.x ? dims.x - 1 : coord.x;
+	coord.y = coord.y < 0 ? 0 : coord.y >= dims.y ? dims.y - 1 : coord.y;
+	return imageLoad(in_tex, coord).x;
+}
+
+vec2 sobel(ivec2 coord) {
+	float
+		b00 = get_at(coord + ivec2(-1, -1)), b10 = get_at(coord + ivec2(0, -1)), b20 = get_at(coord + ivec2(1, -1)),
+		b01 = get_at(coord + ivec2(-1,  0)),                                     b21 = get_at(coord + ivec2(1,  0)),
+		b02 = get_at(coord + ivec2(-1,  1)), b12 = get_at(coord + ivec2(0,  1)), b22 = get_at(coord + ivec2(1,  1));
+	return vec2(
+		b00 - b20 + 2 * b01 - b21 * 2 + b02 - b22,
+		b00 - b02 + 2 * b10 - b12 * 2 + b20 - b22
+	);
+}
+
+void main() {
+	dims = imageSize(out_tex);
+	ivec2 p0 = ivec2(gl_GlobalInvocationID.xy);
+	vec2 s = sobel(p0);
+	imageStore(out_tex, p0, vec4(s, 0, 0));
+}

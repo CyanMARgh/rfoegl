@@ -14,8 +14,8 @@ void Mesh_Any::prepare(Mesh_Raw mesh_raw, const std::vector<Texture>& textures, 
 	this->textures = textures;
 	has_ebo = !!mesh_raw.indices;
 
-	glGenVertexArrays(1, &vao);
-	glGenBuffers(1, &vbo);
+	glGenVertexArrays(1, &vao); //printf("+vao: %d\n", vao);
+	glGenBuffers(1, &vbo); //printf("+vbo: %d\n", vbo);
 	glBindVertexArray(vao);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
 
@@ -25,21 +25,35 @@ void Mesh_Any::prepare(Mesh_Raw mesh_raw, const std::vector<Texture>& textures, 
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_count * sizeof(u32), mesh_raw.indices, draw_mode);
 	}
 }
+
+	// std::function<void(Mesh_Raw, decltype(GL_STATIC_DRAW))> attr_linker; // TODO remove
+	// std::function<void(const Mesh_Any&)> painter;
+	// std::vector<Texture> textures;
+	// u32 vbo, vao, ebo, points_count, indices_count;
+	// bool is_owner, has_ebo;
+
+Mesh_Any::Mesh_Any() {
+	attr_linker = nullptr;
+	painter = nullptr;
+	textures = {};
+	vbo = vao = ebo = points_count = indices_count = 0;
+	is_owner = has_ebo = false;
+}
 Mesh_Any::Mesh_Any(
 	std::function<void(Mesh_Raw, decltype(GL_STATIC_DRAW))> _attr_linker,
 	std::function<void(const Mesh_Any&)> _painter,
 	Mesh_Raw mesh_raw,
 	const std::vector<Texture>& textures, decltype(GL_STATIC_DRAW) draw_mode
 ) : attr_linker(_attr_linker), painter(_painter), is_owner(true) {
-	printf("+ mesh\n");
+	// printf("+ mesh\n");
 	prepare(mesh_raw, textures, draw_mode);
 	attr_linker(mesh_raw, draw_mode);
 	glBindVertexArray(0);
 }
 void Mesh_Any::clear() {
-	printf("- mesh\n");
-	glDeleteVertexArrays(1, &vao);
-	glDeleteBuffers(1, &vbo);
+	// printf("- mesh\n");
+	glDeleteVertexArrays(1, &vao); //printf("-vao: %d\n", vao);
+	glDeleteBuffers(1, &vbo); //printf("-vbo: %d\n", vbo);
 	if(has_ebo) { glDeleteBuffers(1, &ebo); }
 	// ::clear(textures); // TODO think about it
 }
@@ -61,7 +75,7 @@ Mesh_Any::Mesh_Any(Mesh_Any&& other) {
 Mesh_Any& Mesh_Any::operator=(Mesh_Any&& other) {
 	// printf("move operator=\n");
 	if(&other != this) {
-		clear();
+		if(is_owner) clear();
 		move(other);
 	}
 	return *this;
