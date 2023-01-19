@@ -1,0 +1,19 @@
+#version 430 core
+layout(local_size_x = 8, local_size_y = 4, local_size_z = 1) in;
+layout(rgba32f, binding = 0) uniform image2D u_vawe;
+layout(rgba32f, binding = 1) uniform image2D u_buf;
+
+uniform float u_time;
+
+const float beta = 1, alpha = 0.01;
+void main() {
+	ivec2 p0 = ivec2(gl_GlobalInvocationID.xy);
+
+	vec2 v = imageLoad(u_vawe, p0).xy;
+
+	float br = v.x * v.x + v.y * v.y;
+	float br_buf = imageLoad(u_buf, p0).x;
+	br_buf = br_buf * beta +  br * alpha;
+
+	imageStore(u_buf, p0, vec4(br_buf));	
+}

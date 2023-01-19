@@ -6,7 +6,8 @@
 #include "demo_5.h" // compute shader eample
 #include "demo_6.h" // pendulum generator
 #include "demo_7.h" // autostereogram
-#include "demo_8.h" // WIP
+#include "demo_8.h" // WIP, filters
+#include "demo_9.h" // WIP, vawe function
 
 #include <cstdio>
 //fixes:
@@ -57,7 +58,8 @@ int main(int argc, char * argv []) {
 	// demo_6();
 	// demo_7();
 	// demo_7();
-	demo_8();
+	// demo_8();
+	demo_9();
     return 0;
 }
 

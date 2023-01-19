@@ -39,6 +39,7 @@ void demo_6() {
 	float prev_time = glfwGetTime();	
 	while(!glfwWindowShouldClose(main_window.window)) {
 		float new_time = glfwGetTime(), delta_time = new_time - prev_time;
+		prev_time = new_time;
 		glfwPollEvents();
 
 		iterate_shader.use();

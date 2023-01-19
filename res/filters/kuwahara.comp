@@ -1,0 +1,135 @@
+#version 430 core
+layout(local_size_x = 8, local_size_y = 4, local_size_z = 1) in;
+
+layout(rgba32f, binding = 0) uniform image2D in_tex;
+layout(rgba32f, binding = 1) uniform image2D out_tex;
+
+uniform vec4 u_sigma;
+
+ivec2 dims;
+vec3 get_at(ivec2 coord) {
+	coord.x = coord.x < 0 ? 0 : coord.x >= dims.x ? dims.x - 1 : coord.x;
+	coord.y = coord.y < 0 ? 0 : coord.y >= dims.y ? dims.y - 1 : coord.y;
+	return imageLoad(in_tex, coord).xyz;
+}
+
+const int R = 10;
+const int N = 8;
+
+const float PI = 3.14159265;
+
+vec3 S[N + 1];
+vec3 S2[N + 1];
+float W[N + 1];
+
+void clear() {
+	for(int i = 0; i <= N; i++) {
+		S[i] = vec3(0);
+		S2[i] = vec3(0);
+		W[i] = 0;
+	}
+}
+int get_id(ivec2 d) {
+	// return
+	// 	d.x * d.x + d.y * d.y > R * R ? 4 :
+	// 	d.x > 0 && d.y >= 0 ? 0 :
+	// 	d.x >= 0 && d.y < 0 ? 1 :
+	// 	d.x < 0 && d.y <= 0 ? 2 :
+	// 	d.x <= 0 && d.y > 0 ? 3 :
+	// 	4;
+
+	int r = 0;
+	if(d.y < 0) {
+		r += 4;
+		d = -d;
+	}
+	if(d.x < 0) {
+		r += 2;
+		d = ivec2(-d.x, d.y);
+	}
+	if(d.x > d.y) {
+		r += 1;
+	}
+
+	return r;
+}
+float weight(ivec2 d) {
+	float sigma = float(R) / 3;
+	return exp(-float(d.x * d.x + d.y * d.y) / (2 * sigma * sigma));
+	// return 1;
+}
+void process(ivec2 p0) {
+	ivec2 d = ivec2(-R, R);
+	for(d.y = -R; d.y <= R; d.y++) {
+		for(d.x = -R; d.x <= R; d.x++) {
+			int i = get_id(d);
+			vec3 col = get_at(p0 + d);
+			float w = weight(d);
+
+			S[i] += col * w;
+			S2[i] += col * col * w;
+			W[i] += w;
+		}
+	}
+	// for(int i = 0; i < 4; i++) {
+	// 	ivec2 D0 = ivec2(bool(i & 1) ? -R : 0, bool(i & 2) ? -R : 0);
+	// 	ivec2 D1;
+	// 	for(D1.y = 0; D1.y <= R; D1.y++) {
+	// 		for(D1.x = 0; D1.x <= R; D1.x++) {
+	// 			float w = weight(D0 + D1);
+	// 			vec3 col = get_at(p0 + D0 + D1);
+
+	// 			S[i] += col * w;
+	// 			S2[i] += col * col * w;
+	// 			W[i] += w;
+	// 		}
+	// 	}
+	// }
+}
+vec3 get_best() {
+	vec3 avg[N];
+	float disp[N];
+
+	for(int i = 0; i < N; i++) {
+		avg[i] = S[i] / W[i];
+		vec3 avg2 = S2[i] / W[i];
+		vec3 disp3 = avg2 - (avg[i] * avg[i]);
+		disp[i] = disp3.x + disp3.y + disp3.z;
+	}
+
+	// int best = 0;
+	// for(int i = 1; i < N; i++) {
+	// 	if(disp[i] < disp[best]) best = i;
+	// }
+	// return avg[best];
+
+	// float disp_min = 10000;
+	// for(int i = 0; i < N; i++) {
+	// 	disp_min = min(disp_min, disp[i]);
+	// }
+	// return vec3(disp[0], disp[1], disp[2]) * 100;
+
+	float omega = 0;
+	vec3 result = vec3(0);
+
+	for(int i = 0; i < N; i++) {
+		float sd = disp[i] < 0 ? 0 : sqrt(disp[i]);
+		float omega_i = exp(-sd * 50);
+		result += avg[i] * omega_i;
+		omega += omega_i;
+	}
+	return result / omega;
+}
+void main() {
+	dims = imageSize(out_tex);
+	ivec2 p0 = ivec2(gl_GlobalInvocationID.xy);
+
+	clear();//=======
+	process(p0);
+	vec3 col = get_best();
+
+	imageStore(out_tex, p0, vec4(col, 1));
+}
+
+
+

@@ -1,0 +1,22 @@
+#version 430 core
+layout(local_size_x = 8, local_size_y = 4, local_size_z = 1) in;
+
+layout(rgba32f, binding = 0) uniform image2D in_tex;
+layout(rg32f, binding = 2) uniform image2D out_tex;
+
+uniform float u_tau;
+uniform float u_eps;
+
+void main() {
+	ivec2 p0 = ivec2(gl_GlobalInvocationID.xy);
+
+	vec4 effg = imageLoad(in_tex, p0);
+	float E = effg.x, F = effg.y, G = effg.w;
+
+	float D = (E - G) * (E - G) + 4 * F * F;
+	float L1 = (E + G + sqrt(D)) / 2;
+
+	vec2 V = vec2(L1 - E, -F);
+
+	imageStore(out_tex, p0, vec4(V, 0, 0));
+}

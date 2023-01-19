@@ -30,5 +30,5 @@ vec3 palette(vec2 p) {
 }
 
 void main() {
-	o_color = vec4(palette(texture(u_screen, uv).xy), 0);
+	o_color = vec4(palette(texture(u_screen, uv).xy), 1);
 }

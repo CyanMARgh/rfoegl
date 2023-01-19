@@ -14,12 +14,13 @@ void set(ivec2 pixel_coords, vec4 state) {
 	imageStore(states, pixel_coords, state);
 }
 
-const int NC = 5;
+const int NC = 1;
 struct Model_Params {
-	float C, R, d, w;
+	float C, R, d, w, r;
 	// vec2 nodes[NC];
 };
-const Model_Params model_params = Model_Params(.2, .2, .1, 800);
+// const
+Model_Params model_params;// = Model_Params(.2, .2, .1, 10);
 
 vec2 rotate(vec2 p, float t) {
 	float c = cos(t), s = sin(t);
@@ -31,7 +32,7 @@ vec4 get_derivative(vec4 p, float t) {
 	vec2 force = -(model_params.C * pos + model_params.R * vel);
 	float dd = model_params.d * model_params.d;
 	for(int i = 0; i < NC; i++) {
-		vec2 node = rotate(vec2(.5, 0), 2 * PI * float(i) / NC + t * model_params.w);
+		vec2 node = rotate(vec2(model_params.r, 0), 2 * PI * float(i) / NC + t * model_params.w);
 		vec2 dp = node - pos;
 		force += dp / pow(dot(dp, dp) + dd, 1.5);
 	}
@@ -54,7 +55,14 @@ void main() {
 	ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);
 	ivec2 dims = imageSize(states);
 
-	float M = 6000;
+	float M = 5;
+
+	float x = float(pixel_coords.x) / float(dims.x);
+	float w = 1000;//exp(mix(log(1), log(2), x));
+
+	model_params = Model_Params(.2, .2, .1, w, .5);	
+
+	// const Model_Params model_params = Model_Params(.2, .2, .1, 10);
 
 	vec4 s = get(pixel_coords);
 	set(pixel_coords, 

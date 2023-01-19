@@ -16,11 +16,11 @@ layout(local_size_x = 8, local_size_y = 4, local_size_z = 1) in;
 	#define Q rgba32f
 #endif
 
-layout(rg32f, binding = 0) uniform image2D dir_tex;
+layout(rgba32f, binding = 0) uniform image2D dir_tex;
 layout(Q, binding = 1) uniform image2D in_tex;
 layout(Q, binding = 2) uniform image2D out_tex;
 
-uniform float u_sigma_high, u_sigma_low, u_tau;
+uniform float u_sigma_high, u_sigma_low, u_tau, u_eps;
 
 ivec2 dims;
 T get_at(ivec2 coord) {
@@ -34,41 +34,45 @@ T get_at(vec2 p) {
 
 const float PI = 3.14159265;
 
-vec2 move(vec2 p, float h) {
-	ivec2 pi = ivec2(floor(p));
-	pi.x = pi.x < 0 ? 0 : pi.x >= dims.x ? dims.x - 1 : pi.x;
-	pi.y = pi.y < 0 ? 0 : pi.y >= dims.y ? dims.y - 1 : pi.y;
+vec2 get_dir(ivec2 pi) {
+	// ivec2 pi = ivec2(floor(p));
+	// pi.x = pi.x < 0 ? 0 : pi.x >= dims.x ? dims.x - 1 : pi.x;
+	// pi.y = pi.y < 0 ? 0 : pi.y >= dims.y ? dims.y - 1 : pi.y;
+	vec4 effg = imageLoad(in_tex, pi);
+	float E = effg.x, F = effg.y, G = effg.a;
+	float D = (E - G) * (E - G) + 4 * F * F;
+	vec2 V = vec2(E - G + sqrt(D), 2 * F);
 
-	vec4 dir4 = imageLoad(dir_tex, pi);
-	vec2 dir = normalize(dir4.xy);
-	return p + dir * h;
+	return normalize(V);
 }
+// vec2 move(vec2 p, float h) {
+// 	vec2 dir = normalize(get_dir(p));
+// 	return p + dir * h;
+// }
 
 T gauss(ivec2 p0, float sigma) {
 	const float h = .3;
 	int R = int(3.1 * sigma / h);
 
-	vec2 p0f = vec2(p0), p = p0f;
+	vec2 p0f = vec2(p0);
+	vec2 dir = get_dir(p0);
 
 	float c_sum = 1;
-	T col_sum = get_at(p);
+	T col_sum = get_at(p0f);
 
 	for(int i = 1; i <= R; i++) {
-		p = move(p, h);
 		float l = float(i) * h;
 		float x = l / sigma;
 		float coeff = exp(-x * x / 2);
-		col_sum += get_at(p) * coeff;
+		col_sum += get_at(p0f + dir * l) * coeff;
 		c_sum += coeff;
 	}
 
-	p = p0f;
 	for(int i = 1; i <= R; i++) {
-		p = move(p, -h);
 		float l = float(i) * h;
 		float x = l / sigma;
 		float coeff = exp(-x * x / 2);
-		col_sum += get_at(p) * coeff;
+		col_sum += get_at(p0f - dir * l) * coeff;
 		c_sum += coeff;
 	}
 
@@ -78,7 +82,7 @@ T gauss(ivec2 p0, float sigma) {
 T dog(ivec2 p0) {
 	T res = gauss(p0, u_sigma_high) * (1 + u_tau) - gauss(p0, u_sigma_low) * u_tau;
 	// return smoothstep(0, 1, res);
-	return step(.5, res);
+	return get_at(p0); //smoothstep(0, u_eps, res);
 }
 
 void main() {
