@@ -1,13 +1,14 @@
-#include "demo_0.h" // glowing borders
-#include "demo_1.h" // stripes
-#include "demo_2.h" // two-border flat particles
-#include "demo_3.h" // default shading
-#include "demo_4.h" // atomic counter example 
-#include "demo_5.h" // compute shader eample
-#include "demo_6.h" // pendulum generator
-#include "demo_7.h" // autostereogram
-#include "demo_8.h" // WIP, filters
-#include "demo_9.h" // WIP, vawe function
+#include "demo_0.h"  // glowing borders
+#include "demo_1.h"  // stripes
+#include "demo_2.h"  // two-border flat particles
+#include "demo_3.h"  // default shading
+#include "demo_4.h"  // atomic counter example 
+#include "demo_5.h"  // compute shader eample
+#include "demo_6.h"  // pendulum generator
+#include "demo_7.h"  // autostereogram
+#include "demo_8.h"  // WIP, filters
+#include "demo_9.h"  // WIP, vawe function
+#include "demo_10.h" // WIP, order independed transparency 
 
 #include <cstdio>
 //fixes:
@@ -43,23 +44,16 @@
 
 int main(int argc, char * argv []) {
 	// demo_0();
-	// demo_0();
-	// demo_1();
 	// demo_1();
 	// demo_2();
-	// demo_2();
-	// demo_3();
 	// demo_3();
 	// demo_4();
-	// demo_4();
-	// demo_5();
 	// demo_5();
 	// demo_6();
-	// demo_6();
-	// demo_7();
 	// demo_7();
 	// demo_8();
-	demo_9();
+	// demo_9();
+	demo_10();
     return 0;
 }
 

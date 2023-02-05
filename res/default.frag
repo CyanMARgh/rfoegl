@@ -42,8 +42,8 @@ vec3 calc_light(Dir_Light light, vec3 norm, vec3 view_dir) {
 	float spec_c = max(dot(view_dir, reflect_dir), 0);
 
 	vec3 amb = vec3(0);//light.amb * texture(u_tex_diff, uv).xyz;
-	vec3 diff = vec3(0);//light.diff * diff_c * texture(u_tex_diff, uv).xyz;
-	vec3 spec = light.spec * spec_c * texture(u_tex_spec, uv).xyz;
+	vec3 diff = light.diff * diff_c * texture(u_tex_diff, uv).xyz;
+	vec3 spec = vec3(0);//light.spec * spec_c * texture(u_tex_spec, uv).xyz;
 
 	return amb + diff + spec;
 }
@@ -65,24 +65,32 @@ vec3 calc_light(Point_Light light, vec3 norm, vec3 frag_pos, vec3 view_dir) {
 
 out vec4 o_color; 
 
+#define FILPUV
 void main() {
 	//TODO bool flip
-	uv = flip(vert_out.uv);
+	uv = vert_out.uv;
+#ifdef FILPUV
+	uv = flip(uv);
+#endif
+	// o_color = vec4(texture(u_tex_diff, uv).rgb, 1);
 	// Point_Light light = Point_Light(
 	// 	vec3(sin(u_time * 2) * 2, 2, cos(u_time * 2) * 2),
 	// 	1, 4.5 / pl_rad, 75 / (pl_rad * pl_rad),
 	// 	vec3(.3), vec3(1), vec3(1)
 	// );
-	float time = 1.5;
+	// float time = 1.5;
 	Dir_Light light = Dir_Light(
 		normalize(vec3(1, -1, -1)),
-		vec3(.3), vec3(1), vec3(.2)
+		vec3(.7), vec3(1), vec3(.2)
 	);
 
 	// vec3 n0 = texture(u_tex_norm, flip(vert_out.uv)).xyz;
-	vec3 n0 = normalize(texture(u_tex_norm, flip(vert_out.uv)).xyz * 2 - 1);
-	vec3 norm = //vert_out.N[2];
-		vert_out.N * n0;
+	vec3 n0 =
+		//normalize(
+		texture(u_tex_norm, vert_out.uv).xyz
+		 // * 2 - 1)
+	;
+	vec3 norm = vert_out.N[2];// * n0.b;
 
 	vec3 color = calc_light(light, norm, normalize(u_view_pos - vert_out.pos));
 	// o_color = vec4(pow(color, vec3(1 / 2.2)), texture(u_tex_diff, uv).w);

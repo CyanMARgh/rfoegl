@@ -17,7 +17,7 @@ void main() {
 	vec2 uv = (vec2(p0) / vec2(dims) - .5) * 2;
 	uv.x *= float(dims.x) / float(dims.y);
 
-	float phi = dot(uv * 80, vec2(1, 0));
+	float phi = dot(uv * 160, vec2(1, 0));
 	vec2 v = vec2(sin(phi), -cos(phi));
 	float A = ampl(uv);
 
