@@ -1,9 +1,9 @@
 #version 430 core
 layout(local_size_x = 8, local_size_y = 4, local_size_z = 1) in;
-layout(rgba32f, binding = 0) uniform image2D u_screen;
+layout(r32ui, binding = 0) uniform uimage2D u_screen;
 
 void main() {
 	ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);
 
-	imageStore(u_screen, pixel_coords, vec4(0, 0, 1, 1));
+	imageStore(u_screen, pixel_coords, ivec4(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF));
 }

@@ -12,17 +12,6 @@
 
 #include <cstdio>
 
-const u32 max_pixels = 1200 * 800;
-struct Pixel {
-	vec4 color;
-};
-
-struct Shader_Data {
-	// float colors[4] = {0.f, .2f, .5f, 1.f};
-	vec4 colors[4] = {{1.f, 0.f, 0.f, 1.f}, {0.f, 1.f, 0.f, 1.f}, {0.f, 0.f, 1.f, 1.f}, {1.f, 1.f, 0.f, 1.f}};
-	// vec3 colors[4] = {{1.f, 0.f, 0.f}, {0.f, 1.f, 0.f}, {0.f, 0.f, 1.f}, {1.f, 1.f, 0.f}};
-} shader_data;
-
 void demo_10() {
 	u32 width = 1200, height = 800;
 	Window main_window(width, height);
@@ -32,41 +21,45 @@ void demo_10() {
 	
 	set_default_key_callback(&main_window);
 
-	Image buf_screen(width, height, GL_RGBA32F);
+	Image buf_heads(width, height, GL_R32UI);
 
-	// ubo
-	u32 ubo;
-	glGenBuffers(1, &ubo);
-	glBindBuffer(GL_UNIFORM_BUFFER, ubo);
-	glBufferData(GL_UNIFORM_BUFFER, sizeof(Shader_Data), &shader_data, GL_STATIC_DRAW);
-	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+	struct Color_Node {
+		vec4 color;
+		u32 prev;
+		float depth;
+	};
 
-	//ssbo for lists
-	// u32 ssbo;
-	// glGenBuffers(1, &ssbo);
-	// glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
-	// 	glBufferData(GL_SHADER_STORAGE_BUFFER, max_pixels * sizeof(Pixel), NULL, GL_DYNAMIC_DRAW);
-	// glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+	// ssbo for lists
+	const u32 max_pixels = width * height * 5;
+	u32 ssbo_nodes;
+	glGenBuffers(1, &ssbo_nodes);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo_nodes);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, max_pixels * sizeof(Color_Node), NULL, GL_DYNAMIC_DRAW);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbo_nodes);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+	// node counter
+	u32 acbo_counter = 0;
+	glGenBuffers(1, &acbo_counter); DEFER(glDeleteBuffers(1, &acbo_counter));
+	glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, acbo_counter);
+		glBufferData(GL_ATOMIC_COUNTER_BUFFER, sizeof(u32), NULL, GL_DYNAMIC_DRAW);
+		glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, acbo_counter);
+	glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
+	auto clear_counter = [] (u32 id) {
+		u32 zero = 0;
+		glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, id);
+		glBufferSubData(GL_ATOMIC_COUNTER_BUFFER, 0, sizeof(u32), &zero);
+		glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
+	};
 
 	auto& quad_mesh = get_primitive(Primitive::QUAD);
-	
-	// Model model("./res/6th_platonic_solid.obj"); AC(model);
 	Model model("./res/cat/scene.gltf"); AC(model);
-	// Model model("./res/backpack/backpack.obj"); AC(model);
 
-	//shaders
-	Shader shader_model(Shader::VF, {"res/default.vert", "res/oit/proj.frag"});
-		u32 i0 = shader_model.find("u_tex_diff"), i1 = shader_model.find("u_tex_spec"), i2 = shader_model.find("u_tex_norm");
-		u32 uloc_colors = glGetUniformBlockIndex(shader_model.id, "Shader_Data");
-		glUniformBlockBinding(shader_model.id, uloc_colors, 0);
+	Shader shader_to_nodes(Shader::VF, {"res/default.vert", "res/oit/to_nodes.frag"});
+		u32 i0 = shader_to_nodes.find("u_tex_diff"), i1 = shader_to_nodes.find("u_tex_spec"), i2 = shader_to_nodes.find("u_tex_norm");
 
-		// printf("%d %d %d\n", i0, i1, i2);	
-	// Shader screen_shader(Shader::VF, {"res/screen2.vert", "res/stereo.frag"});
-	Shader shader_screen_d4(Shader::VF, {"res/screen2.vert", "res/filters/screen.frag", "DIM 4"});
+	Shader shader_from_nodes(Shader::VF, {"res/screen2.vert", "res/oit/from_nodes.frag"});
 	Shader shader_clear(Shader::C, {"res/oit/clear.comp"});
-
-	//Texture
-	Texture pattern = _load_texture2("res/pattern.png");
 
 	float prev_time = glfwGetTime();
 	while(!glfwWindowShouldClose(main_window.window)) {
@@ -76,32 +69,31 @@ void demo_10() {
 		glm::mat4 screen_transform = get_transform(&main_camera, &main_window);
 
 		shader_clear.use();
-			shader_clear.set("u_screen", buf_screen, 0);
+			shader_clear.set("u_heads", buf_heads, 0);
 			glDispatchCompute(width / 8, height / 4, 1);
 			glMemoryBarrier(GL_ALL_BARRIER_BITS);
+		clear_counter(acbo_counter);
 
+		// scene
 		{
-			glEnable(GL_DEPTH_TEST);
-			// glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, frame_buffer.depth_texture_id, 0);
-			// glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, frame_buffer.color_texture_id, 0);
-			clear(vec3{1.f, 1.f, 1.f});
+			glEnable(GL_DEPTH_TEST); DEFER(glEnable(GL_DEPTH_TEST);)
 
+			clear(vec3{1.f, 0.f, 1.f});
 			glm::mat4 world_transform(1.f);
 			world_transform = glm::scale(world_transform, glm::vec3(.2f, .2f, .2f));
 
-			shader_model.use();
-				shader_model.set("u_trworld", world_transform);
-				shader_model.set("u_trscreen", screen_transform);
-				shader_model.set("u_screen", buf_screen, 3);
-
-				glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
+			shader_to_nodes.use();
+				shader_to_nodes.set("u_trworld", world_transform);
+				shader_to_nodes.set("u_trscreen", screen_transform);
+				shader_to_nodes.set("u_heads", buf_heads, 0);
 
 			draw(model, i0, i1, i2);
 		}
 
-		// shader_screen_d4.use();
-		// 	shader_screen_d4.set("u_screen", buf_screen);
-		// draw_uv(quad_mesh);
+		clear(vec3{1.f, 0.f, 1.f});
+		shader_from_nodes.use();
+			shader_from_nodes.set("u_heads", buf_heads, 0);
+		draw_uv(quad_mesh);
 		glfwSwapBuffers(main_window.window);
 	}
 }

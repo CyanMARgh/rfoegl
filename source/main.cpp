@@ -8,7 +8,7 @@
 #include "demo_7.h"  // autostereogram
 #include "demo_8.h"  // WIP, filters
 #include "demo_9.h"  // WIP, vawe function
-#include "demo_10.h" // WIP, order independed transparency 
+#include "demo_10.h" // order independed transparency 
 
 #include <cstdio>
 //fixes:
