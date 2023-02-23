@@ -31,8 +31,8 @@ struct Shader {
 
 	u32 find(const std::string& field);
 
-	void set_texture(const std::string& field, u32 texture_id, u32 delta = 0);
-	void set(const std::string& field, Texture texture, u32 delta = 0);
+	// void set_texture(const std::string& field, u32 texture_id, u32 delta = 0);
+	// void set(const std::string& field, Texture texture, u32 delta = 0);
 
 	void set_image(const std::string& field, u32 texture_id, u32 delta = 0, decltype(GL_RGBA32F) _type = GL_RGBA32F);
 	void set(const std::string& field, const Image& image, u32 delta = 0);
@@ -43,6 +43,9 @@ struct Shader {
 	void set(const std::string& field, vec4 value);
 
 	void set(const std::string& field, mat4 value);
+
+	void set(const std::string& field, u32 value);
+	void set(const std::string& field, s32 value);
 
 	void use();
 };

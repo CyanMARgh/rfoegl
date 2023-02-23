@@ -1,4 +1,4 @@
-#include "demo_10.h"
+#include "demo_11.h"
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -11,7 +11,7 @@
 
 #include <cstdio>
 
-void demo_10() {
+void demo_11() {
 	u32 width = 1200, height = 800;
 	Window main_window(width, height);
 
@@ -29,7 +29,7 @@ void demo_10() {
 	};
 
 	// ssbo for lists
-	const u32 max_pixels = width * height * 5;
+	const u32 max_pixels = width * height * 15;
 	u32 ssbo_nodes;
 	glGenBuffers(1, &ssbo_nodes);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo_nodes);
@@ -54,11 +54,19 @@ void demo_10() {
 	auto& quad_mesh = get_primitive(Primitive::QUAD);
 	Model model("./res/cat/scene.gltf"); AC(model);
 
-	Shader shader_to_nodes(Shader::VF, {"res/default.vert", "res/oit/to_nodes.frag"});
-		u32 i0 = shader_to_nodes.find("u_tex_diff"), i1 = shader_to_nodes.find("u_tex_spec"), i2 = shader_to_nodes.find("u_tex_norm");
+	// Shader shader_to_nodes(Shader::VF, {"res/default.vert", "res/oit/to_nodes.frag"});
+	// 	u32 i0 = shader_to_nodes.find("u_tex_diff"), i1 = shader_to_nodes.find("u_tex_spec"), i2 = shader_to_nodes.find("u_tex_norm");
 
 	Shader shader_from_nodes(Shader::VF, {"res/screen2.vert", "res/oit/from_nodes.frag"});
 	Shader shader_clear(Shader::C, {"res/oit/clear.comp"});
+
+	Shader shader_particles(Shader::VGF, {"res/surface_particles/sp.vert", "res/surface_particles/sp.geom", "res/surface_particles/sp.frag"});
+		u32 i0 = shader_particles.find("u_tex_diff");
+		GLenum err = glGetError();
+		printf("err = %x\n", err);
+		u32 i1 = shader_particles.find("u_tex_spec"), i2 = shader_particles.find("u_tex_norm");
+	printf("%d %d %d\n", i0, i1, i2);
+
 
 	float prev_time = glfwGetTime();
 	while(!glfwWindowShouldClose(main_window.window)) {
@@ -75,21 +83,22 @@ void demo_10() {
 
 		// scene
 		{
-			glEnable(GL_DEPTH_TEST); DEFER(glEnable(GL_DEPTH_TEST);)
+			// glEnable(GL_DEPTH_TEST); DEFER(glEnable(GL_DEPTH_TEST);)
 
-			clear(vec3{1.f, 0.f, 1.f});
+			clear();
 			glm::mat4 world_transform(1.f);
 			world_transform = glm::scale(world_transform, glm::vec3(.2f, .2f, .2f));
 
-			shader_to_nodes.use();
-				shader_to_nodes.set("u_trworld", world_transform);
-				shader_to_nodes.set("u_trscreen", screen_transform);
-				shader_to_nodes.set("u_heads", buf_heads, 0);
+			shader_particles.use();
+				shader_particles.set("u_trworld", world_transform);
+				shader_particles.set("u_trscreen", screen_transform);
+				shader_particles.set("u_heads", buf_heads, 0);
+				shader_particles.set("u_eye", get_position(main_camera));
 
-			draw(model/*, i0, i1, i2*/);
+			draw(model);
 		}
 
-		clear(vec3{1.f, 0.f, 1.f});
+		clear();
 		shader_from_nodes.use();
 			shader_from_nodes.set("u_heads", buf_heads, 0);
 		draw_uv(quad_mesh);

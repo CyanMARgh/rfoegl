@@ -8,7 +8,9 @@
 #include "demo_7.h"  // autostereogram
 #include "demo_8.h"  // WIP, filters
 #include "demo_9.h"  // WIP, vawe function
-#include "demo_10.h" // order independed transparency 
+#include "demo_10.h" // order independet transparency 
+#include "demo_11.h" // paint clouds
+#include "demo_12.h" // buddhabrot
 
 #include <cstdio>
 //fixes:
@@ -49,11 +51,16 @@ int main(int argc, char * argv []) {
 	// demo_3();
 	// demo_4();
 	// demo_5();
-	// demo_6();
+	demo_6();
 	// demo_7();
+
 	// demo_8();
+
 	// demo_9();
-	demo_10();
+	// demo_10();
+	// demo_11();
+
+	// demo_12();
     return 0;
 }
 

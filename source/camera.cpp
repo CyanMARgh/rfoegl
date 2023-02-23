@@ -1,6 +1,7 @@
 #include "camera.h"
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
+#include <cstdio>
 
 void move_camera(Camera* camera, const bool* pressed_keys, float delta_time) {
 	float cam_speed = 2.f, rot_speed = 2.0f;
@@ -34,7 +35,20 @@ vec3 get_position(Camera camera) {
 	vec4 p4 = camera.translation * vec4{0.f, 0.f, 0.f, 1.f};
 	return {p4.x, p4.y, p4.z};
 }
+
+void print_mat(glm::mat4 mat) {
+	printf("%lf %lf %lf %lf\n%lf %lf %lf %lf\n%lf %lf %lf %lf\n%lf %lf %lf %lf\n", 
+		mat[0][0],  mat[0][1],  mat[0][2],  mat[0][3],
+		mat[1][0],  mat[1][1],  mat[1][2],  mat[1][3],
+		mat[2][0],  mat[2][1],  mat[2][2],  mat[2][3],
+		mat[3][0],  mat[3][1],  mat[3][2],  mat[3][3]
+	);
+}
+
+
 glm::mat4 get_transform(const Camera* camera, const Window* window) {
-	glm::mat4 projection = glm::perspective(45.f, (float)window->width/(float)window->height, .1f, 100.f); // cam params
-	return projection * glm::inverse(camera->rotation) * glm::inverse(camera->translation);
+	glm::mat4 projection = glm::perspective(45.f, (float)window->width/(float)window->height, .001f, 100.f); // cam params
+	return
+		projection *
+		glm::inverse(camera->rotation) * glm::inverse(camera->translation);
 }

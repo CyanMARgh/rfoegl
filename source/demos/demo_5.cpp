@@ -4,40 +4,33 @@
 #include "primitives.h"
 #include "shader.h"
 #include "defer.h"
+#include "image.h"
 
 void demo_5() {
-	Window main_window(1200, 800);
+	u32 width = 1200, height = 800;
+	Window main_window(width, height);
 	set_default_key_callback(&main_window);
 
-	u32 screen_tex;
-	glCreateTextures(GL_TEXTURE_2D, 1, &screen_tex);
-	glTextureParameteri(screen_tex, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTextureParameteri(screen_tex, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTextureParameteri(screen_tex, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTextureParameteri(screen_tex, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTextureStorage2D(screen_tex, 1, GL_RGBA32F, 1200, 800);
-	glBindImageTexture(0, screen_tex, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-
+	Image buf_tex(width, height);
 	auto& quad_mesh = get_primitive(Primitive::QUAD);
 
 	Shader screen_shader(Shader::VF, {"res/screen2.vert", "res/screen2.frag"});
-	Shader compute_shader(Shader::C, {"res/compute.comp"});
+	Shader compute_shader(Shader::C, {"res/tests/compute.comp"});
 
 	float prev_time = glfwGetTime();	
 
 	while(!glfwWindowShouldClose(main_window.window)) {
 		float new_time = glfwGetTime(), delta_time = new_time - prev_time;
 		glfwPollEvents();
-
 		clear();
-
 		compute_shader.use();
+			compute_shader.set("u_screen", buf_tex, 0);
 			compute_shader.set("u_time", new_time);			
-		glDispatchCompute(1200 / 8, 800 / 4, 1);
+		glDispatchCompute(width / 8, height / 4, 1);
 		glMemoryBarrier(GL_ALL_BARRIER_BITS);
 
 		screen_shader.use();
-			screen_shader.set_texture("u_screen", screen_tex);
+			bind_texture(buf_tex.id, 0);
 		quad_mesh.draw();
 
 		glfwSwapBuffers(main_window.window);

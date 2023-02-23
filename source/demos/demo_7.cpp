@@ -54,7 +54,7 @@ void demo_7() {
 				shader_model.set("u_trworld", world_transform);
 				shader_model.set("u_trscreen", screen_transform);
 
-			draw(model, 0, 0, 0);
+			draw(model/*, 0, 0, 0*/);
 		}
 		set_window_buffer(&main_window);
 
@@ -62,8 +62,8 @@ void demo_7() {
 
 		screen_shader.use();
 			screen_shader.set("u_time", new_time);
-			screen_shader.set("u_tex", pattern, 0);
-			screen_shader.set_texture("u_depth", frame_buffer.depth_texture_id, 1);
+			bind(pattern, 0);
+			bind_texture(frame_buffer.depth_texture_id, 1);
 
 		quad_mesh.draw();
 

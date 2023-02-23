@@ -129,18 +129,18 @@ void Shader::use() {
 	glUseProgram(id);
 }
 
-void Shader::set_texture(const std::string& field, u32 texture_id, u32 delta) {
-	glActiveTexture(GL_TEXTURE0 + delta);
-	glBindTexture(GL_TEXTURE_2D, texture_id);
-	glUniform1i(find(field), delta);
-}
-void Shader::set(const std::string& field, Texture texture, u32 delta) {
-	set_texture(field, texture.info.id, delta);
-}
-
+// void Shader::set_texture(const std::string& field, u32 texture_id, u32 delta) {
+// 	glActiveTexture(GL_TEXTURE0 + delta);
+// 	glBindTexture(GL_TEXTURE_2D, texture_id);
+// 	// glUniform1i(find(field), delta);
+// }
+// void Shader::set(const std::string& field, Texture texture, u32 delta) {
+// 	set_texture(field, texture.info.id, delta);
+// }
 void Shader::set_image(const std::string& field, u32 texture_id, u32 delta, decltype(GL_RGBA32F) type) {
+	//TODO binding -> image method
 	glBindImageTexture(delta, texture_id, 0, GL_FALSE, 0, GL_WRITE_ONLY, type);
-	glUniform1i(find(field), delta);
+	// glUniform1i(find(field), delta);
 }
 void Shader::set(const std::string& field, const Image& image, u32 delta) {
 	set_image(field, image.id, delta, image.type);
@@ -160,4 +160,11 @@ void Shader::set(const std::string& field, vec4 value) {
 }
 void Shader::set(const std::string& field, mat4 value) {
 	glUniformMatrix4fv(find(field), 1, GL_FALSE, glm::value_ptr(value));
+}
+
+void Shader::set(const std::string& field, u32 value) {
+	glUniform1ui(find(field), value);
+}
+void Shader::set(const std::string& field, s32 value) {
+	glUniform1i(find(field), value);
 }

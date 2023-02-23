@@ -94,7 +94,7 @@ std::vector<Strip_Node> generate_random_smooth_cycle(u32 count, u32* result_size
 }
 
 void demo_1() {
-	Window main_window(1200, 800);
+	Window main_window(1200, 400);
 	set_default_key_callback(&main_window);
 
 	Camera main_camera;
@@ -128,7 +128,8 @@ void demo_1() {
 				shader_ls.set("u_zone_size", zone_size);
 				shader_ls.set("u_point_count", POINTS_COUNT + 1);
 				shader_ls.set("u_length", total_length);
-				shader_ls.set("u_texture", texture);
+				// shader_ls.set("u_texture", texture);
+				bind(texture, 0);
 				shader_ls.set("u_tex_size", vec2{(float)texture.info.width, (float)texture.info.height});
 				shader_ls.set("u_r", .15f);
 				shader_ls.set("u_transform", get_transform(&main_camera, &main_window));

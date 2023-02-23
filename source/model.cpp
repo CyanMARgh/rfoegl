@@ -138,15 +138,16 @@ void Model::load_material_textures(std::vector<Texture>& textures, aiMaterial *m
 	}
 }
 
-void draw(const Model& model, u32 uloc_diff, u32 uloc_spec, u32 uloc_norm) {
+void draw(const Model& model) {
 	for(const auto& mesh : model.meshes) { 
 		for(const auto& tex : mesh.textures) {
 			if(tex.info.type == aiTextureType_DIFFUSE) {
-				set_uniform(uloc_diff, tex, 0);
+				bind(tex, 0);
 			} else if(tex.info.type == aiTextureType_SPECULAR) {
-				set_uniform(uloc_spec, tex, 1);
+				bind(tex, 1);
 			} else if(tex.info.type == aiTextureType_HEIGHT) {
-				set_uniform(uloc_norm, tex, 2); // TODO set default single pixel texture
+				bind(tex, 2);
+				// TODO set default single pixel texture
 			}
 		}
 		draw_default(mesh);

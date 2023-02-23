@@ -76,13 +76,12 @@ Texture load_texture(const std::string& path, aiTextureType type) {
 	}
 }
 
-void set_uniform_texture(u32 location, u32 texture_id, u32 delta) {
+void bind_texture(u32 texture_id, u32 delta) {
 	glActiveTexture(GL_TEXTURE0 + delta);
 	glBindTexture(GL_TEXTURE_2D, texture_id);
-	glUniform1i(location, delta);
 }
-void set_uniform(u32 location , Texture texture, u32 delta) {
-	set_uniform_texture(location, texture.info.id, delta);
+void bind(Texture texture, u32 delta) {
+	bind_texture(texture.info.id, delta);
 }
 void clear(Texture texture) {
 	printf("clear texture start!\n");

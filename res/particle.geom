@@ -1,9 +1,9 @@
-#version 330 core
+#version 430 core
 
 layout (points) in;
 layout (triangle_strip, max_vertices = 4) out;
 
-const vec2 u_screen_size = vec2(1200, 800);
+uniform vec2 u_screen_size;
 uniform float u_particle_size = 30;
 
 in float _freq[];
@@ -18,7 +18,7 @@ void add_point(vec4 p0, vec2 dxy, vec4 M) {
 }
 
 void main() {
-	vec4 M = vec4(u_particle_size / u_screen_size, 1., 1.), p0 = gl_in[0].gl_Position;
+	vec4 M = vec4(u_particle_size / (vec2(u_screen_size.x / u_screen_size.y, 1) * 1500), 1., 1.), p0 = gl_in[0].gl_Position;
 #ifdef SCREEN_SCALE
 	p0.xyz /= p0.w; p0.w = 1;
 #else

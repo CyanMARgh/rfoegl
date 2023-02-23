@@ -1,0 +1,85 @@
+#version 430 core
+layout(local_size_x = 8, local_size_y = 4, local_size_z = 1) in;
+layout(r32ui, binding = 0) uniform uimage2D u_brbuf;
+
+uniform uint u_time;
+
+uint hash(uint a) {
+	a = (a + 0x7ed55d16u) + (a << 12u);
+	a = (a ^ 0xc761c23cu) ^ (a >> 19u);
+	a = (a + 0x165667b1u) + (a <<  5u);
+	a = (a + 0xd3a2646cu) ^ (a <<  9u);
+	a = (a + 0xfd7046c5u) + (a <<  3u);
+	a = (a ^ 0xb55a4f09u) ^ (a >> 16u);
+	return a;
+}
+vec2 v2hash(uint a) {
+	uint h0 = hash(a);
+	uint h1 = hash(h0 + a);
+	return vec2(h0, h1) / float(0xffffffffu);
+}
+
+const uint pixel_count = 5;
+const ivec2 buf_size = ivec2(1200, 800);
+const vec2 center = vec2(-.5, 0), size = vec2(1.5, 1);
+const float PI = 3.14159265;
+
+ivec2 dims;
+void add(vec2 coord, uint inc) {
+	ivec2 icoord = ivec2(((coord - center) / size * .5 + .5) * buf_size);
+	if(icoord.x >= 0 && icoord.y >= 0 && icoord.x < 1200 && icoord.y < 800) {
+		imageAtomicAdd(u_brbuf, icoord, inc);
+	}
+	// imageStore(u_brbuf, icoord, ivec4((u_time / 100) % 2));
+}
+vec2 zmz(vec2 a, vec2 b) {
+	return vec2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
+}
+vec2 zsqrt(vec2 z) {
+	float l = length(z);
+	return vec2(sqrt((l + z.x) / 2), sign(z.y) * sqrt((l - z.x) / 2));
+}
+
+void gen_buddabrot(vec2 z0) {
+	const uint MAX_ITERATIONS = 100, BEGIN = 0;
+
+	{
+		vec2 q = zsqrt(vec2(1, 0) - 4 * z0);
+		if(length(vec2(1, 0) - q) <= 1) {
+			return;
+			// add(z0, 100);
+		}
+		if(length(z0 + vec2(1, 0)) < 1. / 4) {
+			return;
+			// add(z0, 100);
+		}
+	}
+
+	vec2 zi[MAX_ITERATIONS];
+	vec2 z = z0;
+	uint i = 0;
+	for(; i < MAX_ITERATIONS;) {
+		z = zmz(z, z) + z0;
+		if(z.x * z.x + z.y * z.y > 5) break;
+		zi[i] = z;
+		i++;
+	}
+	if(i == MAX_ITERATIONS) {
+		return;
+	}
+	for(uint j = BEGIN; j < i; j++) {
+		add(zi[j], 1);
+	}
+}
+
+void main() {
+	dims = imageSize(u_brbuf);
+	ivec2 id2 = ivec2(gl_GlobalInvocationID.xy);
+	uint I0 = u_time * (pixel_count * dims.x * dims.y) + pixel_count * (dims.x * id2.y + id2.x);
+
+	for(uint i = 0; i < pixel_count; i++) {
+		vec2 pa = v2hash(I0 + i); pa.x = pa.x * 2 * PI + 3;
+		vec2 z0 = vec2(sin(pa.x), cos(pa.x)) * sqrt(pa.y) * 3;
+		gen_buddabrot(z0);
+	}
+}

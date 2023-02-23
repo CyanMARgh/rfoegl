@@ -30,7 +30,7 @@ void demo_2() {
 
 	Mesh_Any particle_cloud = make_mesh<Particle>(make_mesh_raw(particles, {}));
 
-	Shader screen_shader(Shader::VF, {"res/screen.vert", "res/screen.frag"});
+	Shader screen_shader(Shader::VF, {"res/only_uv.vert", "res/pass_color.frag"});
 		u32 uloc_screen_factor_screen = glGetUniformLocation(screen_shader.id, "u_screen_factor");
 		u32 uloc_tex0_screen = glGetUniformLocation(screen_shader.id, "u_tex0"); 
 		u32 uloc_tex1_screen = glGetUniformLocation(screen_shader.id, "u_tex1"); 
@@ -58,7 +58,7 @@ void demo_2() {
 				particle_shader.set("u_transform", transform);
 				particle_shader.set("u_screen_size", vec2{main_window.width, main_window.height});
 				particle_shader.set("u_time", new_time);
-				particle_shader.set("u_particle_size", 150);
+				particle_shader.set("u_particle_size", 150.f);
 			glEnable(GL_DEPTH_TEST); 
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

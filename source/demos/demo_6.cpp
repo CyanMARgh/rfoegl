@@ -51,7 +51,7 @@ void demo_6() {
 		clear();
 		
 		screen_shader.use();
-			screen_shader.set_texture("u_screen", screen_tex);
+			bind_texture(screen_tex, 0);
 		draw_uv(quad_mesh);
 
 		glfwSwapBuffers(main_window.window);

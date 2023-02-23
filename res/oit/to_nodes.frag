@@ -25,7 +25,7 @@ in struct Vert_Out {
 	mat3 N;
 } vert_out;
 
-out vec4 o_color;
+out vec4 o_color; //TODO remove?
 
 void main() {
 	vec2 uv = vert_out.uv;

@@ -13,7 +13,7 @@
 
 void demo_0() {
 	Window main_window(1200, 800);
-	Frame_Buffer frame_buffer(2400, 1600);
+	Frame_Buffer frame_buffer(main_window.width * 2, main_window.height * 2);
 
 	Camera main_camera;
 	main_camera.translation = glm::translate(main_camera.translation, glm::vec3(0.f, 0.f, 3.f));
@@ -31,13 +31,14 @@ void demo_0() {
 		return h0 + dh;
 	}, 60, 60, 12);
 
-	const u32 PARTICLES_COUNT = 5000;
+	const u32 PARTICLES_COUNT = 10000;
 	std::vector<Particle> particles = spawn_particles(&line_set, PARTICLES_COUNT, 0.015);
 	Mesh_Any particle_cloud = make_mesh<Particle>(make_mesh_raw(particles, {}));
 
 	//shaders
-	Shader blob_shader(Shader::VF, {"res/cube.vert", "res/cube.frag"});
-	Shader screen_shader(Shader::VF, {"res/screen.vert", "res/screen.frag"});
+	Shader blob_shader(Shader::VF, {"res/single_color.vert", "res/single_color.frag"});
+	Shader screen_shader(Shader::VF, {"res/only_uv.vert", "res/pass_color.frag"});
+	//TODO move to folder
 	Shader particle_shader(Shader::VGF, {"res/particle.vert", "res/particle.geom", "res/particle.frag"});
 
 	float prev_time = glfwGetTime();	
@@ -53,7 +54,7 @@ void demo_0() {
 		glm::mat4 global_transform = projection * glm::inverse(main_camera.rotation) * glm::inverse(main_camera.translation);
 
 		set_buffer(&frame_buffer);
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, frame_buffer.depth_texture_id, 0);
+			// glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, frame_buffer.depth_texture_id, 0);
 			clear();
 			/* slices */ {
 				glm::mat4 local_transform(1.f);
@@ -71,9 +72,8 @@ void demo_0() {
 		clear();
 		/* screen */ {
 			screen_shader.use();
-				screen_shader.set_texture("u_tex0", frame_buffer.color_texture_id, 0);
-				screen_shader.set_texture("u_tex1", frame_buffer.depth_texture_id, 1);
-				screen_shader.set("u_screen_factor", vec2((float)main_window.width / frame_buffer.width, (float)main_window.height / frame_buffer.height));
+				bind_texture(frame_buffer.color_texture_id, 0);
+				// screen_shader.set_texture("u_color", frame_buffer.color_texture_id, 0);
 			quad_mesh.draw();
 		}
 		/* particles */ {
@@ -83,7 +83,8 @@ void demo_0() {
 
 			particle_shader.use();
 				particle_shader.set("u_transform", transform);
-				particle_shader.set_texture("u_tex", frame_buffer.depth_texture_id);
+				// particle_shader.set_texture("u_tex", frame_buffer.depth_texture_id);
+				bind_texture(frame_buffer.depth_texture_id, 0);
 				particle_shader.set("u_screen_size", vec2{(float)main_window.width, (float)main_window.height});
 				particle_shader.set("u_time", new_time);
 				particle_shader.set("u_particle_size", 20);

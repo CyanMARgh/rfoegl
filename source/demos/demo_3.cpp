@@ -19,9 +19,9 @@ void demo_3() {
 	Model teapot("./res/backpack/backpack.obj"); AC(teapot);
 
 	Shader shader_default(Shader::VF, {"res/default.vert", "res/default.frag"});
-		u32 uloc_teapot_tex_diff = glGetUniformLocation(shader_default.id, "u_tex_diff"); //TODO ???
-		u32 uloc_teapot_tex_spec = glGetUniformLocation(shader_default.id, "u_tex_spec");
-		u32 uloc_teapot_tex_norm = glGetUniformLocation(shader_default.id, "u_tex_norm");
+		// u32 uloc_teapot_tex_diff = glGetUniformLocation(shader_default.id, "u_tex_diff"); //TODO ???
+		// u32 uloc_teapot_tex_spec = glGetUniformLocation(shader_default.id, "u_tex_spec");
+		// u32 uloc_teapot_tex_norm = glGetUniformLocation(shader_default.id, "u_tex_norm");
 	Shader shader_normal(Shader::VGF, {"res/default.vert", "res/normals.geom", "res/lamp.frag"});
 
 	float prev_time = glfwGetTime();	
@@ -37,7 +37,7 @@ void demo_3() {
 
 		glfwPollEvents();
 		clear(vec3(1.f, 0.f, 1.f));
-		{
+		{			
 			glm::mat4 world_transform(1.f);
 			// world_transform = glm::scale(world_transform, vec3(.1f, .1f, .1f));
 			// world_transform = glm::translate(world_transform, vec3(0.f, -8.f, -4.f));
@@ -52,7 +52,7 @@ void demo_3() {
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			
-				draw(teapot, uloc_teapot_tex_diff, uloc_teapot_tex_spec, uloc_teapot_tex_norm);
+				draw(teapot/*, uloc_teapot_tex_diff, uloc_teapot_tex_spec, uloc_teapot_tex_norm*/);
 #ifdef NORMALS
 			glUseProgram(shader_normals.id);
 				glUniformMatrix4fv(uloc_normals_trworld, 1, GL_FALSE, (GLfloat*)&world_transform);

@@ -27,7 +27,7 @@ void demo_4() {
 	auto& quad_mesh = get_primitive(Primitive::QUAD);
 
 	Shader cube_shader(Shader::VF, {"res/lamp.vert", "res/lamp.frag"});
-	Shader screen_shader(Shader::VF, {"res/screen.vert", "res/screen.frag"});
+	Shader screen_shader(Shader::VF, {"res/only_uv.vert", "res/pass_color.frag"});
 
 	float prev_time = glfwGetTime();	
 
